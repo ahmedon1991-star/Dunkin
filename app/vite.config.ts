@@ -1,19 +1,24 @@
-import path from "path"
-const __dirname = import.meta.dirname
-import { defineConfig } from "vite"
+import path from "path";
+const __dirname = import.meta.dirname;
+import { defineConfig } from "vite";
+import devServer from "@hono/vite-dev-server";
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [],
+  plugins: [
+    devServer({
+      entry: "./api/boot.ts",
+    }),
+  ],
   server: {
     port: 3000,
+    host: "0.0.0.0",
   },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@contracts": path.resolve(__dirname, "./contracts"),
       "@db": path.resolve(__dirname, "./db"),
-      "db": path.resolve(__dirname, "./db"),
+      db: path.resolve(__dirname, "./db"),
     },
   },
   envDir: path.resolve(__dirname),

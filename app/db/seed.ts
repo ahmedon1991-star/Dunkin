@@ -2,30 +2,37 @@ import { getDb } from "../api/queries/connection";
 import { products } from "./schema";
 import { seedProducts } from "./seedData";
 
+function toNullableNumber(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
 async function seed() {
   const db = getDb();
-  console.log("Seeding database...");
+  console.log("Seeding full product catalog...");
 
-  const existing = await db.select({ id: products.id }).from(products).limit(1);
-  if (existing.length > 0) {
-    console.log("Products already seeded, skipping.");
-    process.exit(0);
-  }
+  await db.delete(products);
 
-  await db.insert(products).values(
-    seedProducts.map((p, i) => ({
-      code: p.code,
-      nameAr: p.name_ar,
-      nameEn: p.name_en,
-      category: p.category,
-      mode: p.mode as "simple" | "detailed",
-      unitCode: p.unit_code as "CTN" | "PKT" | "PCS",
-      unitLabel: p.unit_label,
-      sortOrder: i,
-    })),
-  );
+  const rows = seedProducts.map((p, index) => ({
+    code: p.code,
+    nameAr: p.name_ar,
+    nameEn: p.name_en,
+    category: p.category,
+    mode: p.mode === "detailed" ? "detailed" : "simple",
+    qty: toNullableNumber(p.qty),
+    packs: toNullableNumber(p.packs),
+    packSize: toNullableNumber(p.pack_size),
+    loose: toNullableNumber(p.loose),
+    orderQty: null,
+    unitCode: (p.unit_code === "CTN" || p.unit_code === "PKT" || p.unit_code === "PCS" ? p.unit_code : "PCS") as "CTN" | "PKT" | "PCS",
+    unitLabel: p.unit_label,
+    sortOrder: index + 1,
+  }));
 
-  console.log(`Seeded ${seedProducts.length} products. Done.`);
+  await db.insert(products).values(rows);
+
+  console.log(`Seeded ${rows.length} products. Done.`);
   process.exit(0);
 }
 
