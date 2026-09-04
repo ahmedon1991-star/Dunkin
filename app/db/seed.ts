@@ -19,7 +19,7 @@ async function seed() {
     nameAr: p.name_ar,
     nameEn: p.name_en,
     category: p.category,
-    mode: p.mode === "detailed" ? "detailed" : "simple",
+    mode: (p.mode === "detailed" ? "detailed" : "simple") as "simple" | "detailed",
     qty: toNullableNumber(p.qty),
     packs: toNullableNumber(p.packs),
     packSize: toNullableNumber(p.pack_size),

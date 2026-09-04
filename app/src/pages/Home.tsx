@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { trpc } from "@/providers/trpc";
 import { getMeta, catMeta } from "@/lib/catMeta";
+import { uploadProductImage } from "@/lib/supabase";
 import type { Product } from "@db/schema";
 
 type Fields = Partial<Pick<Product, "mode" | "qty" | "packs" | "packSize" | "loose" | "orderQty">>;
@@ -8,6 +10,7 @@ type Fields = Partial<Pick<Product, "mode" | "qty" | "packs" | "packSize" | "loo
 const arNum = (n: number) => n.toLocaleString("ar-EG");
 
 export default function Home() {
+  const navigate = useNavigate();
   const utils = trpc.useUtils();
   const listQuery = trpc.inventory.list.useQuery(undefined, { refetchOnWindowFocus: false });
   const [items, setItems] = useState<Product[]>([]);
@@ -247,6 +250,12 @@ export default function Home() {
               className="w-10 h-10 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl flex items-center justify-center transition border border-red-200"
             >
               <i className="ph-bold ph-trash text-lg"></i>
+            </button>
+            <button
+              onClick={() => navigate("/admin")}
+              className="bg-violet-50 text-violet-700 hover:bg-violet-100 px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 border border-violet-200 text-xs md:text-sm"
+            >
+              <i className="ph-bold ph-gear text-lg"></i> لوحة الإدارة
             </button>
             <button
               onClick={() => setShowAdd(true)}
@@ -628,6 +637,15 @@ function ProductCard({
   return (
     <div className={`rounded-2xl p-3.5 md:p-4 border transition-all hover:shadow-lg group flex flex-col justify-between h-full ${meta.color} hover:border-blue-500/50 relative`}>
       <div>
+        {p.imageUrl ? (
+          <div className="mb-3 overflow-hidden rounded-2xl border border-black/10 bg-white/80 shadow-sm">
+            <img src={p.imageUrl} alt={p.nameAr} className="h-28 w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+          </div>
+        ) : (
+          <div className="mb-3 flex h-28 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/70 text-slate-400">
+            <i className="ph-bold ph-image text-3xl"></i>
+          </div>
+        )}
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => onCopyCode(p.code)} title="اضغط لنسخ الكود">
             <span className="text-xs font-mono font-black bg-white/90 border border-black/10 px-2 py-0.5 rounded-md text-slate-800 shadow-sm hover:bg-blue-50 transition">
@@ -735,7 +753,7 @@ function ProductCard({
   );
 }
 
-function AddProductModal({
+export function AddProductModal({
   title = "إضافة منتج جديد",
   product,
   categories,
@@ -757,12 +775,16 @@ function AddProductModal({
     mode: "simple" | "detailed";
     unitCode: "CTN" | "PKT" | "PCS";
     unitLabel: string;
+    imageUrl?: string | null;
   }) => void;
   isLoading: boolean;
 }) {
   const [code, setCode] = useState(product?.code ?? "");
   const [nameAr, setNameAr] = useState(product?.nameAr ?? "");
   const [nameEn, setNameEn] = useState(product?.nameEn ?? "");
+  const [imageUrl, setImageUrl] = useState(product?.imageUrl ?? "");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const allCategories = useMemo(() => {
     const predefined = Object.keys(catMeta);
@@ -844,6 +866,51 @@ function AddProductModal({
           </div>
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-1.5">
+              صورة المنتج (اختياري)
+            </label>
+            <div className="space-y-2">
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://example.com/product.jpg"
+                disabled={isLoading || isUploading}
+                className={fieldCls + " font-sans"}
+                dir="ltr"
+              />
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-violet-300 bg-violet-50 px-3 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      setIsUploading(true);
+                      setUploadError(null);
+                      const publicUrl = await uploadProductImage(file);
+                      setImageUrl(publicUrl);
+                    } catch (error) {
+                      setUploadError(error instanceof Error ? error.message : "تعذر رفع الصورة");
+                    } finally {
+                      setIsUploading(false);
+                    }
+                  }}
+                />
+                <i className="ph-bold ph-upload-simple"></i>
+                {isUploading ? "جاري رفع الصورة..." : "رفع من المعرض"}
+              </label>
+              {uploadError && <p className="text-xs font-bold text-red-500">{uploadError}</p>}
+            </div>
+            {imageUrl.trim() && (
+              <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                <img src={imageUrl} alt="Product preview" className="h-24 w-full object-cover rounded-lg" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5">
               تصنيف المجموعة <span className="text-red-500">*</span>
             </label>
             <select value={category} onChange={(e) => setCategory(e.target.value)} disabled={isLoading} className={fieldCls}>
@@ -880,7 +947,7 @@ function AddProductModal({
           </button>
           <button
             disabled={!valid || isLoading}
-            onClick={() => onSave({ code: code.trim(), nameAr: nameAr.trim(), nameEn: nameEn.trim(), category, mode, unitCode, unitLabel: unitLabels[unitCode] })}
+            onClick={() => onSave({ code: code.trim(), nameAr: nameAr.trim(), nameEn: nameEn.trim(), category, mode, unitCode, unitLabel: unitLabels[unitCode], imageUrl: imageUrl.trim() || null })}
             className="flex-[2] bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
           >
             {isLoading ? (

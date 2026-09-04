@@ -12,6 +12,11 @@ import {
 } from "./queries/products";
 
 const unitCode = z.enum(["CTN", "PKT", "PCS"]);
+const optionalNullableImageUrl = z.preprocess((value) => {
+  if (value == null) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+  return value;
+}, z.union([z.string().url(), z.null()]).optional());
 
 export const inventoryRouter = createRouter({
   list: publicQuery.query(() => listProducts()),
@@ -44,6 +49,7 @@ export const inventoryRouter = createRouter({
         mode: z.enum(["simple", "detailed"]),
         unitCode,
         unitLabel: z.string().min(1),
+        imageUrl: optionalNullableImageUrl,
       }),
     )
     .mutation(async ({ input }) => {
@@ -62,6 +68,7 @@ export const inventoryRouter = createRouter({
         mode: z.enum(["simple", "detailed"]).optional(),
         unitCode: unitCode.optional(),
         unitLabel: z.string().min(1).optional(),
+        imageUrl: optionalNullableImageUrl,
       }),
     )
     .mutation(async ({ input }) => {

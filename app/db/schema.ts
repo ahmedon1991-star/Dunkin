@@ -26,6 +26,7 @@ export const products = pgTable("products", {
   orderQty: integer("order_qty"),
   unitCode: unitCodeEnum("unit_code").notNull(),
   unitLabel: varchar("unit_label", { length: 64 }).notNull(),
+  imageUrl: varchar("image_url", { length: 1024 }),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
