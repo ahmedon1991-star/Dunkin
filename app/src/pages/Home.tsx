@@ -21,9 +21,7 @@ export default function Home() {
   const [promptId, setPromptId] = useState<number | null>(null);
   const [promptQty, setPromptQty] = useState("");
   const [showReset, setShowReset] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
   const [showOrder, setShowOrder] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showSnapshots, setShowSnapshots] = useState(false);
 
   const [toast, setToast] = useState<string | null>(null);
@@ -44,34 +42,11 @@ export default function Home() {
       utils.inventory.list.invalidate();
     },
   });
-  const addMut = trpc.inventory.add.useMutation({
-    onSuccess: () => {
-      utils.inventory.list.invalidate();
-      setShowAdd(false);
-      notify("تمت إضافة المنتج بنجاح! 🎉");
-    },
-    onError: () => notify("تعذر إضافة المنتج (ربما الكود مكرر أو هناك مشكلة بالاتصال)"),
-  });
   const resetMut = trpc.inventory.resetAll.useMutation({
     onError: () => {
       notify("تعذر التصفير");
       utils.inventory.list.invalidate();
     },
-  });
-  const editMut = trpc.inventory.edit.useMutation({
-    onSuccess: () => {
-      utils.inventory.list.invalidate();
-      setEditingProduct(null);
-      notify("تم تعديل المنتج بنجاح");
-    },
-    onError: () => notify("تعذر تعديل المنتج (ربما الكود مكرر)")
-  });
-  const removeMut = trpc.inventory.remove.useMutation({
-    onSuccess: () => {
-      utils.inventory.list.invalidate();
-      notify("تم حذف المنتج");
-    },
-    onError: () => notify("تعذر حذف المنتج")
   });
   const snapshotMut = trpc.inventory.saveSnapshot.useMutation({
     onSuccess: () => {
@@ -257,18 +232,6 @@ export default function Home() {
             >
               <i className="ph-bold ph-gear text-lg"></i> لوحة الإدارة
             </button>
-            <button
-              onClick={() => setShowAdd(true)}
-              className="hidden sm:flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-lg shadow-slate-900/20"
-            >
-              <i className="ph-bold ph-plus"></i> إضافة منتج
-            </button>
-            <button
-              onClick={() => setShowAdd(true)}
-              className="sm:hidden w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-lg"
-            >
-              <i className="ph-bold ph-plus text-lg"></i>
-            </button>
           </div>
         </div>
       </header>
@@ -349,10 +312,6 @@ export default function Home() {
                   const prod = items.find((x) => x.id === id);
                   setPromptQty(prod?.orderQty != null ? String(prod.orderQty) : "");
                   setPromptId(id);
-                }}
-                onEdit={setEditingProduct}
-                onDelete={(id) => {
-                  if (window.confirm("هل تريد حذف هذا المنتج نهائيًا؟")) removeMut.mutate({ id });
                 }}
                 onCopyCode={(code) => {
                   navigator.clipboard.writeText(code);
@@ -442,28 +401,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL: ADD PRODUCT */}
-      {showAdd && (
-        <AddProductModal
-          categories={categories}
-          existingCodes={items.map((p) => p.code)}
-          onClose={() => setShowAdd(false)}
-          onSave={(input) => addMut.mutate(input)}
-          isLoading={addMut.isPending}
-        />
-      )}
 
-      {editingProduct && (
-        <AddProductModal
-          title="تعديل المنتج"
-          product={editingProduct}
-          categories={categories}
-          existingCodes={items.filter((p) => p.id !== editingProduct.id).map((p) => p.code)}
-          onClose={() => setEditingProduct(null)}
-          onSave={(input) => editMut.mutate({ id: editingProduct.id, ...input })}
-          isLoading={editMut.isPending}
-        />
-      )}
 
       {showSnapshots && (
         <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 modal-enter" onClick={() => setShowSnapshots(false)}>
@@ -571,16 +509,12 @@ function ProductCard({
   onPatch,
   onStep,
   onOrder,
-  onEdit,
-  onDelete,
   onCopyCode,
 }: {
   p: Product;
   onPatch: (id: number, fields: Fields, debounce?: boolean) => void;
   onStep: (p: Product, field: "qty" | "packs" | "loose", change: number) => void;
   onOrder: (id: number) => void;
-  onEdit: (product: Product) => void;
-  onDelete: (id: number) => void;
   onCopyCode: (code: string) => void;
 }) {
   const meta = getMeta(p.category);
@@ -669,12 +603,6 @@ function ProductCard({
               }`}
             >
               <i className="ph-bold ph-shopping-cart text-sm"></i> {hasOrder ? p.orderQty : "طلب"}
-            </button>
-            <button onClick={() => onEdit(p)} title="تعديل المنتج" className="text-xs px-2 py-1 rounded-md border border-black/10 bg-white/90 text-slate-600 hover:bg-blue-50 transition">
-              <i className="ph-bold ph-pencil-simple"></i>
-            </button>
-            <button onClick={() => onDelete(p.id)} title="حذف المنتج" className="text-xs px-2 py-1 rounded-md border border-red-200 bg-white/90 text-red-600 hover:bg-red-50 transition">
-              <i className="ph-bold ph-trash"></i>
             </button>
           </div>
         </div>
