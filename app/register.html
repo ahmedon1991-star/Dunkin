@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل موظف جديد - شاشة الإدارة</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Cairo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Supabase JS Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body { font-family: 'Cairo', sans-serif; }
+    .bg-gradient-pos { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+  </style>
+</head>
+<body class="bg-gradient-pos text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+  <div class="w-full max-w-xl">
+
+    <!-- Header Logo & Navigation -->
+    <div class="flex items-center justify-between mb-6">
+      <a href="login.html" class="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white bg-slate-800/80 border border-slate-700/60 px-4 py-2 rounded-xl transition">
+        <i class="fa-solid fa-arrow-right"></i> العودة لشاشة الدخول
+      </a>
+      <span class="text-xs font-extrabold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-xl">
+        <i class="fa-solid fa-user-gear ml-1"></i> شاشة الإدارة والمشرفين
+      </span>
+    </div>
+
+    <!-- Main Registration Card -->
+    <div class="glass-card rounded-3xl p-6 md:p-8 shadow-2xl relative">
+      
+      <div class="flex items-center gap-4 mb-6 pb-6 border-b border-slate-700/60">
+        <div class="w-14 h-14 bg-gradient-to-tr from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg shadow-orange-500/30">
+          <i class="fa-solid fa-user-plus"></i>
+        </div>
+        <div>
+          <h2 class="text-xl md:text-2xl font-black text-white">تسجيل حساب موظف جديد</h2>
+          <p class="text-xs text-slate-400 font-semibold mt-0.5">إضافة وتعيين الموظفين للفروع ونقاط البيع</p>
+        </div>
+      </div>
+
+      <!-- Alert Box -->
+      <div id="alert-box" class="hidden mb-6 p-4 rounded-2xl text-xs md:text-sm font-bold flex items-center gap-3"></div>
+
+      <!-- Registration Form -->
+      <form id="register-form" class="space-y-5">
+
+        <!-- Field 1: Full Name -->
+        <div>
+          <label for="full_name" class="block text-xs font-bold text-slate-300 mb-2">
+            <i class="fa-solid fa-signature text-orange-400 ml-1.5"></i> الاسم الكامل للموظف *
+          </label>
+          <input
+            type="text"
+            id="full_name"
+            name="full_name"
+            required
+            placeholder="أدخل الاسم الثلاثي (مثال: خالد عبد العزيز)"
+            class="w-full bg-slate-900/80 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-white font-bold placeholder:text-slate-500 placeholder:font-normal focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition text-sm"
+          />
+        </div>
+
+        <!-- Field 2: Allocated Employee ID -->
+        <div>
+          <label for="employee_id" class="block text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-id-card text-orange-400 ml-1.5"></i> الرقم الوظيفي المخصص *</span>
+            <button type="button" onclick="generateRandomEmpId()" class="text-[11px] text-orange-400 hover:underline font-bold">
+              <i class="fa-solid fa-wand-magic-sparkles ml-1"></i> توليد رقم تلقائي
+            </button>
+          </label>
+          <input
+            type="text"
+            id="employee_id"
+            name="employee_id"
+            required
+            placeholder="مثال: EMP-1005"
+            class="w-full bg-slate-900/80 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-white font-bold placeholder:text-slate-500 placeholder:font-normal focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition text-sm uppercase tracking-wider"
+          />
+        </div>
+
+        <!-- Field 3: Branch Selector Dropdown (Loaded from Supabase) -->
+        <div>
+          <label for="branch_code" class="block text-xs font-bold text-slate-300 mb-2">
+            <i class="fa-solid fa-store text-orange-400 ml-1.5"></i> اختر الفرع التابع له الموظف *
+          </label>
+          <select
+            id="branch_code"
+            name="branch_code"
+            required
+            class="w-full bg-slate-900/80 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-white font-bold focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition text-sm cursor-pointer"
+          >
+            <option value="" disabled selected>جاري تحميل الفروع المتاحة...</option>
+          </select>
+        </div>
+
+        <!-- Field 4: Employee Role -->
+        <div>
+          <label for="role" class="block text-xs font-bold text-slate-300 mb-2">
+            <i class="fa-solid fa-user-shield text-orange-400 ml-1.5"></i> الدور الوظيفي (Role) *
+          </label>
+          <select
+            id="role"
+            name="role"
+            required
+            class="w-full bg-slate-900/80 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-white font-bold focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition text-sm cursor-pointer"
+          >
+            <option value="cashier" selected>كاشير (Cashier)</option>
+            <option value="manager">مدير فرع (Branch Manager)</option>
+            <option value="supervisor">مشرف وردية (Shift Supervisor)</option>
+          </select>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          id="submit-btn"
+          class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold py-4 px-6 rounded-2xl shadow-xl shadow-orange-500/30 transition-all duration-200 flex items-center justify-center gap-2 text-base active:scale-[0.98] mt-2"
+        >
+          <i class="fa-solid fa-check-circle"></i>
+          <span id="btn-text">حفظ وتأكيد تسجيل الموظف</span>
+        </button>
+
+      </form>
+
+    </div>
+
+  </div>
+
+  <script src="session.js"></script>
+  <script>
+    const registerForm = document.getElementById("register-form");
+    const alertBox = document.getElementById("alert-box");
+    const branchSelect = document.getElementById("branch_code");
+    const submitBtn = document.getElementById("submit-btn");
+    const btnText = document.getElementById("btn-text");
+
+    // Load Active Branches from Supabase on Boot
+    document.addEventListener("DOMContentLoaded", async () => {
+      await loadBranches();
+    });
+
+    async function loadBranches() {
+      try {
+        if (!supabaseClient) {
+          // Fallback demo branches if offline
+          renderBranches([
+            { branch_code: 'BR-101', branch_name: 'فرع الرياض الرئيسي - العليا' },
+            { branch_code: 'BR-102', branch_name: 'فرع جدة - الكورنيش' },
+            { branch_code: 'BR-103', branch_name: 'فرع الدمام - الشاطئ' }
+          ]);
+          return;
+        }
+
+        const { data, error } = await supabaseClient
+          .from("branches")
+          .select("branch_code, branch_name")
+          .eq("is_active", true)
+          .order("branch_code");
+
+        if (error || !data || data.length === 0) {
+          renderBranches([
+            { branch_code: 'BR-101', branch_name: 'فرع الرياض الرئيسي - العليا' },
+            { branch_code: 'BR-102', branch_name: 'فرع جدة - الكورنيش' }
+          ]);
+          return;
+        }
+
+        renderBranches(data);
+      } catch (e) {
+        console.error("Error loading branches:", e);
+      }
+    }
+
+    function renderBranches(branches) {
+      branchSelect.innerHTML = '<option value="" disabled selected>اختر الفرع التابع له الموظف</option>';
+      branches.forEach(b => {
+        const opt = document.createElement("option");
+        opt.value = b.branch_code;
+        opt.innerText = `[${b.branch_code}] ${b.branch_name}`;
+        branchSelect.appendChild(opt);
+      });
+    }
+
+    function generateRandomEmpId() {
+      const num = Math.floor(1000 + Math.random() * 9000);
+      document.getElementById("employee_id").value = `EMP-${num}`;
+    }
+
+    function showAlert(msg, type = "error") {
+      alertBox.classList.remove("hidden", "bg-red-500/20", "text-red-300", "border-red-500/30", "bg-emerald-500/20", "text-emerald-300", "border-emerald-500/30");
+      if (type === "error") {
+        alertBox.classList.add("bg-red-500/20", "text-red-300", "border", "border-red-500/30");
+        alertBox.innerHTML = `<i class="fa-solid fa-circle-exclamation text-red-400 text-lg"></i> <span>${msg}</span>`;
+      } else {
+        alertBox.classList.add("bg-emerald-500/20", "text-emerald-300", "border", "border-emerald-500/30");
+        alertBox.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-lg"></i> <span>${msg}</span>`;
+      }
+    }
+
+    // Submit Registration Form
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const fullName = document.getElementById("full_name").value.trim();
+      const employeeId = document.getElementById("employee_id").value.trim();
+      const branchCode = document.getElementById("branch_code").value;
+      const role = document.getElementById("role").value;
+
+      if (!fullName || !employeeId || !branchCode) {
+        showAlert("يرجى إكمال كافة الحقول المطلوبة");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      btnText.innerText = "جاري التسجيل في قاعدة البيانات...";
+
+      try {
+        if (!supabaseClient) {
+          throw new Error("تعذر الاتصال بخادم قاعدة البيانات Supabase");
+        }
+
+        // Call Supabase RPC register_employee
+        const { data, error } = await supabaseClient.rpc("register_employee", {
+          p_employee_id: employeeId,
+          p_full_name: fullName,
+          p_branch_code: branchCode,
+          p_role: role
+        });
+
+        if (error) {
+          throw new Error(error.message || "حدث خطأ أثناء التسجيل");
+        }
+
+        if (!data || !data.success) {
+          showAlert(data ? data.message : "فشل التسجيل");
+          submitBtn.disabled = false;
+          btnText.innerText = "حفظ وتأكيد تسجيل الموظف";
+          return;
+        }
+
+        // Success
+        showAlert(data.message || "تم تسجيل الموظف بنجاح!", "success");
+        registerForm.reset();
+        submitBtn.disabled = false;
+        btnText.innerText = "حفظ وتأكيد تسجيل الموظف";
+
+      } catch (err) {
+        showAlert(err.message || "فشل الاتصال الخارجي بالنظام");
+        submitBtn.disabled = false;
+        btnText.innerText = "حفظ وتأكيد تسجيل الموظف";
+      }
+    });
+  </script>
+</body>
+</html>

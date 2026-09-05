@@ -11,6 +11,8 @@ import {
 export const modeEnum = pgEnum("mode", ["simple", "detailed"]);
 export const unitCodeEnum = pgEnum("unit_code", ["CTN", "PKT", "PCS"]);
 export const snapshotPeriodEnum = pgEnum("period", ["weekly", "monthly"]);
+export const auditTypeEnum = pgEnum("audit_type", ["weekly", "monthly"]);
+export const auditStatusEnum = pgEnum("audit_status", ["draft", "completed"]);
 
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
@@ -39,5 +41,34 @@ export const inventorySnapshots = pgTable("inventory_snapshots", {
   data: text("data").notNull(),
 });
 
+// ─── جداول الجرد التشغيلي البحت (Quantity-only Stocktaking) ─────────────────
+
+export const inventoryAudits = pgTable("inventory_audits", {
+  id: serial("id").primaryKey(),
+  auditType: auditTypeEnum("audit_type").notNull(),
+  auditorName: varchar("auditor_name", { length: 255 }).notNull(),
+  notes: text("notes"),
+  status: auditStatusEnum("audit_status").notNull().default("draft"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const inventoryAuditItems = pgTable("inventory_audit_items", {
+  id: serial("id").primaryKey(),
+  auditId: integer("audit_id").notNull().references(() => inventoryAudits.id, { onDelete: "cascade" }),
+  productCode: varchar("product_code", { length: 64 }).notNull(),
+  productName: varchar("product_name", { length: 512 }).notNull(),
+  category: varchar("category", { length: 255 }).notNull(),
+  unit: varchar("unit", { length: 64 }).notNull(),
+  systemQty: integer("system_qty"),
+  actualQty: integer("actual_qty"),
+  // difference = actual_qty - system_qty (computed in app layer)
+  difference: integer("difference"),
+  itemNotes: text("item_notes"),
+});
+
 export type Product = typeof products.$inferSelect;
 export type InventorySnapshot = typeof inventorySnapshots.$inferSelect;
+export type InventoryAudit = typeof inventoryAudits.$inferSelect;
+export type InventoryAuditItem = typeof inventoryAuditItems.$inferSelect;
+

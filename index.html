@@ -1,0 +1,3373 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام إدارة قائمة المنتجات | Product Management System</title>
+  <!-- Google Fonts: Cairo for AR & Inter for EN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ea580c;
+      --primary-hover: #c2410c;
+      --primary-light: rgba(234, 88, 12, 0.12);
+      --primary-border: rgba(234, 88, 12, 0.28);
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+      --card-bg: rgba(30, 41, 59, 0.75);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-bold: #ffffff;
+      --table-header-bg: rgba(15, 23, 42, 0.9);
+      --table-row-hover: rgba(234, 88, 12, 0.08);
+      --table-row-alt: rgba(255, 255, 255, 0.02);
+      --input-bg: rgba(15, 23, 42, 0.65);
+      --input-border: rgba(255, 255, 255, 0.18);
+      --modal-bg: #1e293b;
+      --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      --badge-bg: rgba(59, 130, 246, 0.15);
+      --badge-color: #60a5fa;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="light"] {
+      --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 50%, #f8fafc 100%);
+      --card-bg: rgba(255, 255, 255, 0.9);
+      --card-border: rgba(0, 0, 0, 0.08);
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --text-bold: #0f172a;
+      --table-header-bg: #f8fafc;
+      --table-row-hover: rgba(234, 88, 12, 0.06);
+      --table-row-alt: rgba(241, 245, 249, 0.6);
+      --input-bg: #ffffff;
+      --input-border: rgba(0, 0, 0, 0.18);
+      --modal-bg: #ffffff;
+      --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      --badge-bg: rgba(37, 99, 235, 0.1);
+      --badge-color: #1d4ed8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Cairo', 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.6;
+      padding: 24px 16px;
+      transition: var(--transition);
+    }
+
+    /* Container */
+    .app-container {
+      max-width: 1380px;
+      margin: 0 auto;
+    }
+
+    /* Header Styling */
+    .app-header {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 22px 28px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-logo {
+      width: 54px;
+      height: 54px;
+      background: linear-gradient(135deg, #ea580c, #f97316);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.7rem;
+      box-shadow: 0 10px 15px -3px rgba(234, 88, 12, 0.4);
+    }
+
+    .brand-title h1 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: var(--text-bold);
+      letter-spacing: -0.5px;
+    }
+
+    .brand-title p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      border-radius: var(--radius-md);
+      border: none;
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: inherit;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), #f97316);
+      color: white;
+      box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(234, 88, 12, 0.5);
+    }
+
+    .btn-secondary {
+      background: var(--input-bg);
+      color: var(--text-main);
+      border: 1px solid var(--card-border);
+    }
+    .btn-secondary:hover {
+      background: var(--primary-light);
+      border-color: var(--primary-border);
+      color: var(--primary);
+    }
+
+    .btn-lang {
+      background: rgba(234, 88, 12, 0.15);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      font-weight: 800;
+    }
+    .btn-lang:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .btn-icon {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border-radius: var(--radius-md);
+    }
+
+    /* Stats Overview Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      padding: 18px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-lg);
+      transition: var(--transition);
+    }
+    .stat-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--primary-border);
+    }
+
+    .stat-info h3 {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .stat-info .stat-value {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--text-bold);
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-md);
+      background: var(--primary-light);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+
+    /* Search & Filter Bar Section */
+    .controls-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .search-wrapper i.search-icon {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      pointer-events: none;
+    }
+    [dir="rtl"] .search-wrapper i.search-icon { right: 16px; }
+    [dir="ltr"] .search-wrapper i.search-icon { left: 16px; }
+
+    .search-input {
+      width: 100%;
+      padding: 12px 48px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.95rem;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .clear-search-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      display: none;
+      padding: 4px;
+    }
+    [dir="rtl"] .clear-search-btn { left: 14px; }
+    [dir="ltr"] .clear-search-btn { right: 14px; }
+    .clear-search-btn:hover { color: var(--primary); }
+
+    .filter-select {
+      padding: 12px 18px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.92rem;
+      outline: none;
+      cursor: pointer;
+      min-width: 220px;
+      transition: var(--transition);
+    }
+    .filter-select:focus {
+      border-color: var(--primary);
+    }
+
+    /* Counter Badge & Active Filters */
+    .counter-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--card-border);
+      font-size: 0.92rem;
+    }
+
+    .counter-text {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .counter-number {
+      color: var(--primary);
+      font-weight: 800;
+      font-size: 1.05rem;
+    }
+
+    /* Table Container & Design */
+    .table-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      margin-bottom: 24px;
+    }
+
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: start;
+    }
+
+    th {
+      background: var(--table-header-bg);
+      color: var(--text-muted);
+      font-weight: 800;
+      font-size: 0.88rem;
+      padding: 16px 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid var(--card-border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 0.96rem;
+      vertical-align: middle;
+      transition: var(--transition);
+    }
+
+    tbody tr {
+      transition: var(--transition);
+    }
+
+    tbody tr:nth-child(even) {
+      background: var(--table-row-alt);
+    }
+
+    tbody tr:hover {
+      background: var(--table-row-hover);
+    }
+
+    /* CRITICAL TECHNICAL SPECIFICATION: Product Name MUST be Bold */
+    .product-name-bold {
+      font-weight: 800 !important;
+      color: var(--text-bold) !important;
+      font-size: 1.04rem;
+      letter-spacing: -0.2px;
+      line-height: 1.45;
+    }
+
+    .product-code-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Inter', monospace;
+      font-weight: 700;
+      background: rgba(148, 163, 184, 0.12);
+      color: var(--text-main);
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.88rem;
+    }
+
+    .category-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      white-space: nowrap;
+    }
+
+    .serial-col {
+      font-weight: 800;
+      color: var(--text-muted);
+      width: 70px;
+      text-align: center;
+    }
+
+    .actions-cell {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    /* Empty State */
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-state i {
+      font-size: 3.5rem;
+      color: var(--primary);
+      margin-bottom: 16px;
+      opacity: 0.7;
+    }
+
+    .empty-state h4 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text-bold);
+      margin-bottom: 6px;
+    }
+
+    /* Pagination Footer */
+    .pagination-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: var(--table-header-bg);
+      border-top: 1px solid var(--card-border);
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .page-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .page-num {
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      background: var(--input-bg);
+      color: var(--text-main);
+      border: 1px solid var(--input-border);
+      font-weight: 800;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .page-num.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      box-shadow: 0 4px 10px rgba(234, 88, 12, 0.4);
+    }
+
+    /* Modal Dialogs */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: var(--transition);
+      padding: 16px;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-box {
+      background: var(--modal-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 550px;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      transform: translateY(20px);
+      transition: var(--transition);
+    }
+
+    .modal-overlay.active .modal-box {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text-bold);
+    }
+
+    .modal-body {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 11px 16px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.95rem;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    /* Responsive Design Adjustments */
+    @media (max-width: 768px) {
+      .app-header { flex-direction: column; align-items: flex-start; }
+      .header-actions { width: 100%; justify-content: space-between; }
+      .controls-row { flex-direction: column; align-items: stretch; }
+      .search-wrapper, .filter-select { width: 100%; min-width: 100%; }
+      th, td { padding: 12px 14px; font-size: 0.88rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- Header Section -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <i class="fa-solid fa-boxes-stacked"></i>
+        </div>
+        <div class="brand-title">
+          <h1 id="ui-title">قائمة منتجات المتجر</h1>
+          <p id="ui-subtitle">إدارة وتصفح 256 منتجاً مع الأكواد والفئات بكل سهولة</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="lang-toggle-btn" class="btn btn-lang" title="Switch Language / تغيير اللغة">
+          <i class="fa-solid fa-globe"></i>
+          <span id="lang-btn-text">English (LTR)</span>
+        </button>
+
+        <button id="theme-toggle-btn" class="btn btn-secondary btn-icon" title="Toggle Theme">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+
+        <button id="add-product-btn" class="btn btn-primary">
+          <i class="fa-solid fa-plus"></i>
+          <span id="add-btn-text">إضافة منتج جديد</span>
+        </button>
+
+        <button id="export-btn" class="btn btn-secondary" title="Export CSV">
+          <i class="fa-solid fa-file-csv"></i>
+          <span id="export-btn-text">تصدير CSV</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Stats Cards Overview -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-info">
+          <h3 id="stat-total-label">إجمالي المنتجات</h3>
+          <div class="stat-value" id="stat-total-val">256</div>
+        </div>
+        <div class="stat-icon">
+          <i class="fa-solid fa-box"></i>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-info">
+          <h3 id="stat-showing-label">المنتجات المعروضة</h3>
+          <div class="stat-value" id="stat-showing-val">256</div>
+        </div>
+        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">
+          <i class="fa-solid fa-filter"></i>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-info">
+          <h3 id="stat-cats-label">إجمالي الفئات</h3>
+          <div class="stat-value" id="stat-cats-val">23</div>
+        </div>
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+          <i class="fa-solid fa-tags"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search & Filter Controls Card -->
+    <div class="controls-card">
+      <div class="controls-row">
+        <!-- Smart Search Bar -->
+        <div class="search-wrapper">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="search-input" class="search-input" placeholder="ابحث باسم المنتج، الكود، أو الفئة...">
+          <button id="clear-search-btn" class="clear-search-btn"><i class="fa-solid fa-circle-xmark"></i></button>
+        </div>
+
+        <!-- Category Dropdown Filter -->
+        <select id="category-filter" class="filter-select">
+          <option value="ALL">جميع الفئات (All Categories)</option>
+        </select>
+
+        <!-- Reset Button -->
+        <button id="reset-btn" class="btn btn-secondary" title="إعادة ضبط القائمة الأولية (256 منتج)">
+          <i class="fa-solid fa-rotate-right"></i>
+          <span id="reset-btn-text">إعادة ضبط البيانات</span>
+        </button>
+      </div>
+
+      <!-- Realtime Product Counter -->
+      <div class="counter-bar">
+        <div class="counter-text">
+          <i class="fa-solid fa-list-check" style="margin-inline-end: 6px; color: var(--primary);"></i>
+          <span id="counter-label">نتائج البحث:</span>
+          <span id="counter-detail" class="counter-number">عرض 256 من إجمالي 256 منتج</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Products Table Card -->
+    <div class="table-card">
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th class="serial-col" id="th-sn">#</th>
+              <th id="th-code">الكود (ID)</th>
+              <th id="th-name">اسم المنتج (Product Name)</th>
+              <th id="th-category">الفئة (Category)</th>
+              <th style="text-align: end;" id="th-actions">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="products-tbody">
+            <!-- Dynamic Rows rendered via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty Results State -->
+      <div id="empty-state" class="empty-state" style="display: none;">
+        <i class="fa-solid fa-magnifying-glass-minus"></i>
+        <h4 id="empty-title">لم يتم العثور على أي نتائج</h4>
+        <p id="empty-desc">جرب البحث بكلمات أخرى أو قم بتغيير الفئة المحددة</p>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div class="pagination-bar">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="page-size-label" style="color: var(--text-muted); font-size: 0.88rem;">عدد العناصر بالصفحة:</span>
+          <select id="page-size-select" class="filter-select" style="min-width: auto; padding: 6px 12px; font-size: 0.85rem;">
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+            <option value="9999">الكل (All)</option>
+          </select>
+        </div>
+
+        <div class="page-controls" id="pagination-controls">
+          <!-- Dynamic Page Buttons -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Add / Edit Modal -->
+  <div id="product-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-title">إضافة منتج جديد</h3>
+        <button id="close-modal-btn" class="btn btn-secondary btn-icon"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="product-form">
+        <div class="modal-body">
+          <input type="hidden" id="form-product-id">
+          
+          <div class="form-group">
+            <label id="lbl-form-code">رقم كود المنتج (Product Code) *</label>
+            <input type="text" id="form-code" class="form-control" required placeholder="مثال: 15041002">
+          </div>
+
+          <div class="form-group">
+            <label id="lbl-form-name-ar">اسم المنتج بالعربية (Name AR) *</label>
+            <input type="text" id="form-name-ar" class="form-control" required placeholder="مثال: دونات بوسطن كرايم">
+          </div>
+
+          <div class="form-group">
+            <label id="lbl-form-name-en">اسم المنتج بالإنجليزية (Name EN) *</label>
+            <input type="text" id="form-name-en" class="form-control" required placeholder="Example: Boston Kreme Donut">
+          </div>
+
+          <div class="form-group">
+            <label id="lbl-form-cat-ar">الفئة بالعربية (Category AR) *</label>
+            <input type="text" id="form-cat-ar" class="form-control" required placeholder="مثال: دونات فانسى ومميز">
+          </div>
+
+          <div class="form-group">
+            <label id="lbl-form-cat-en">الفئة بالإنجليزية (Category EN) *</label>
+            <input type="text" id="form-cat-en" class="form-control" required placeholder="Example: Fancy Donuts">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="cancel-modal-btn" class="btn btn-secondary">إلغاء</button>
+          <button type="submit" class="btn btn-primary" id="save-modal-btn">حفظ البيانات</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JavaScript Engine -->
+  <script>
+    // 256 Embedded Dunkin Products Dataset
+    const INITIAL_PRODUCTS = [
+  {
+    "id": "prod_1",
+    "code": "15041002",
+    "name_ar": "مريلة زي موحد دانكن",
+    "name_en": "UNIFORM.APRON DD",
+    "category_ar": "زي الموظفين",
+    "category_en": "Staff Uniforms"
+  },
+  {
+    "id": "prod_2",
+    "code": "10123003",
+    "name_ar": "ساندوتش بيغل قرفة دانكن (1 × 60 حبة)",
+    "name_en": "SANDWICH.DD BAGEL CINNAMON (1X60 PCS)",
+    "category_ar": "مخبوزات وساندوتشات",
+    "category_en": "Bakery & Sandwiches"
+  },
+  {
+    "id": "prod_3",
+    "code": "10123002",
+    "name_ar": "ساندوتش بيغل حبوب متعددة دانكن (1 × 60 حبة)",
+    "name_en": "SANDWICH.DD BAGEL MULTIGRAIN (1X60 PCS)",
+    "category_ar": "مخبوزات وساندوتشات",
+    "category_en": "Bakery & Sandwiches"
+  },
+  {
+    "id": "prod_4",
+    "code": "10123001",
+    "name_ar": "ساندوتش بيغل سادة دانكن (1 × 60 حبة)",
+    "name_en": "SANDWICH.DD BAGEL PLAIN (1X60 PCS)",
+    "category_ar": "مخبوزات وساندوتشات",
+    "category_en": "Bakery & Sandwiches"
+  },
+  {
+    "id": "prod_5",
+    "code": "14011004",
+    "name_ar": "مجرفة أتربة طويلة مع فرشاة",
+    "name_en": "DISPOSABLES.LONG DUST PAN WITH BRUSH",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_6",
+    "code": "14011001",
+    "name_ar": "مكنسة بلاستيك ناعمة",
+    "name_en": "DISPOSABLES.SOFT PLASTIC BROOM",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_7",
+    "code": "14011007",
+    "name_ar": "مجرفة أتربة إيكولاب",
+    "name_en": "ECOLAB. DUSTPAN",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_8",
+    "code": "14011006",
+    "name_ar": "مساحة أرضيات حمراء إيكولاب",
+    "name_en": "ECOLAB. FLOOR SQUEEGEE RED",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_9",
+    "code": "12023003",
+    "name_ar": "مافن التفاح",
+    "name_en": "APPLE MUFFIN",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_10",
+    "code": "12023008",
+    "name_ar": "مافن التوت الأزرق",
+    "name_en": "BLUEBERRY MUFFIN",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_11",
+    "code": "12023001",
+    "name_ar": "مافن التوت الأزرق (جاهز)",
+    "name_en": "BLUEBERRY MUFFIN FG",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_12",
+    "code": "12023004",
+    "name_ar": "كيك الشوكولاتة",
+    "name_en": "CHOCOLATE CAKE",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_13",
+    "code": "12023024",
+    "name_ar": "كوكيز بقطع الشوكولاتة",
+    "name_en": "CHOCOLATE CHIP COOKIES",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_14",
+    "code": "12023007",
+    "name_ar": "مافن الشوكولاتة",
+    "name_en": "CHOCOLATE MUFFIN",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_15",
+    "code": "12023002",
+    "name_ar": "مافن الشوكولاتة (جاهز)",
+    "name_en": "CHOCOLATE MUFFIN FG",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_16",
+    "code": "12023018",
+    "name_ar": "مافن التمر",
+    "name_en": "DATE MUFFIN",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_17",
+    "code": "12023023",
+    "name_ar": "كيك التمر",
+    "name_en": "DATES CAKE",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_18",
+    "code": "12023022",
+    "name_ar": "مافن التمر",
+    "name_en": "DATES MUFFIN",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_19",
+    "code": "12023006",
+    "name_ar": "كوكيز دبل شوكولاتة",
+    "name_en": "DOUBLE CHOCO COOKIES",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_20",
+    "code": "12023005",
+    "name_ar": "كيك رخامي (ماربل)",
+    "name_en": "MARBLE CAKE",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_21",
+    "code": "12023021",
+    "name_ar": "كيك الفانيليا",
+    "name_en": "VANILLA CAKE",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_22",
+    "code": "12023019",
+    "name_ar": "مافن فانيليا بالشوكولاتة",
+    "name_en": "VANILLA CHOCO MUFFIN",
+    "category_ar": "كيك وكوكيز ومافن",
+    "category_en": "Cakes, Cookies & Muffins"
+  },
+  {
+    "id": "prod_23",
+    "code": "10015003",
+    "name_ar": "كبسولات قهوة إسبريسو بولد روست (10 كبسولات)",
+    "name_en": "COFFEE.BOLD ROAST ESPRESSO (10CAPS)",
+    "category_ar": "قهوة وكبسولات",
+    "category_en": "Coffee & Capsules"
+  },
+  {
+    "id": "prod_24",
+    "code": "10015001",
+    "name_ar": "كبسولات قهوة إسبريسو سيجنتشر بلند (10 كبسولات)",
+    "name_en": "COFFEE.SIGNATURE BLEND ESPRESSO (10CAPS)",
+    "category_ar": "قهوة وكبسولات",
+    "category_en": "Coffee & Capsules"
+  },
+  {
+    "id": "prod_25",
+    "code": "10022001",
+    "name_ar": "شرائح جبن للساندوتش (10 شرائح)",
+    "name_en": "CHEESE.SLICE CHEESE FOR SANDWICH (10 SLICES)",
+    "category_ar": "أجبان وألبان",
+    "category_en": "Dairy & Cheeses"
+  },
+  {
+    "id": "prod_26",
+    "code": "10022023",
+    "name_ar": "جبنة كريمية (2 كجم)",
+    "name_en": "CREAM CHEESE (2KG)",
+    "category_ar": "أجبان وألبان",
+    "category_en": "Dairy & Cheeses"
+  },
+  {
+    "id": "prod_27",
+    "code": "10022003",
+    "name_ar": "لبنة كاملة الدسم (180 جم × 60 حبة)",
+    "name_en": "SPREADS.LABNEH FULL FAT (180 GMS 60 PCS)",
+    "category_ar": "أجبان وألبان",
+    "category_en": "Dairy & Cheeses"
+  },
+  {
+    "id": "prod_28",
+    "code": "10022002",
+    "name_ar": "جبنة كريمية فيلادلفيا 180 جم",
+    "name_en": "SPREADS.PHILADELPHIA CREAM CHEESE 180 GM",
+    "category_ar": "أجبان وألبان",
+    "category_en": "Dairy & Cheeses"
+  },
+  {
+    "id": "prod_29",
+    "code": "10033008",
+    "name_ar": "كريمة خفق بخاخ 250 مل",
+    "name_en": "TOPPING.WHIPPING CREAM SPRAY 250 ML",
+    "category_ar": "أجبان وألبان",
+    "category_en": "Dairy & Cheeses"
+  },
+  {
+    "id": "prod_30",
+    "code": "13015001",
+    "name_ar": "حامل أكواب كرتون ثنائي (2 كوب)",
+    "name_en": "BOXES.TWO CUP CARRIER BOX",
+    "category_ar": "أغلفة وحوامل الأكواب",
+    "category_en": "Cup Sleeves & Holders"
+  },
+  {
+    "id": "prod_31",
+    "code": "13015004",
+    "name_ar": "حامل أكواب رباعي (4 أكواب)",
+    "name_en": "CUPS.CARRIER 4 CUPS (1X 200 PCS)",
+    "category_ar": "أغلفة وحوامل الأكواب",
+    "category_en": "Cup Sleeves & Holders"
+  },
+  {
+    "id": "prod_32",
+    "code": "13015006",
+    "name_ar": "أغلفة ورقية عازلة للأكواب 14 و16 و20 أونصة",
+    "name_en": "DISPOSABLES SLEEVE FOR 14 16 20OZ CUPS",
+    "category_ar": "أغلفة وحوامل الأكواب",
+    "category_en": "Cup Sleeves & Holders"
+  },
+  {
+    "id": "prod_33",
+    "code": "13015005",
+    "name_ar": "أغلفة ورقية عازلة للأكواب 9 و10 أونصة",
+    "name_en": "DISPOSABLES SLEEVE FOR 9 10 OZ CUPS",
+    "category_ar": "أغلفة وحوامل الأكواب",
+    "category_en": "Cup Sleeves & Holders"
+  },
+  {
+    "id": "prod_34",
+    "code": "13024001",
+    "name_ar": "ملاعق بلاستيكية (مغلف 1 × 50 حبة)",
+    "name_en": "DISPOSABLES.PLASTIC SPOON PACK (1X50 PCS)",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_35",
+    "code": "10012001",
+    "name_ar": "قهوة دانكن دارك روست مطحونة (كيس 1 رطل)",
+    "name_en": "COFFEE.DD DARK ROAST GROUNDS BAG 01 LBS",
+    "category_ar": "قهوة وكبسولات",
+    "category_en": "Coffee & Capsules"
+  },
+  {
+    "id": "prod_36",
+    "code": "10014001",
+    "name_ar": "قهوة دانكن خالية من الكافيين مطحونة (كيس 1 رطل)",
+    "name_en": "COFFEE.DD DECAF COFFEE GROUNDS BAG 01 LBS",
+    "category_ar": "قهوة وكبسولات",
+    "category_en": "Coffee & Capsules"
+  },
+  {
+    "id": "prod_37",
+    "code": "10013001",
+    "name_ar": "حبوب قهوة إسبريسو (كيس 1 كجم)",
+    "name_en": "COFFEE.ESPRESSO BEANS BAG 01 KG",
+    "category_ar": "قهوة وكبسولات",
+    "category_en": "Coffee & Capsules"
+  },
+  {
+    "id": "prod_38",
+    "code": "12012010",
+    "name_ar": "دونات بيري تروبيكس",
+    "name_en": "BERRY TROPIX",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_39",
+    "code": "12012022",
+    "name_ar": "دونات شوكو هارت (قلب الشوكولاتة)",
+    "name_en": "CHOCO HEART",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_40",
+    "code": "12012024",
+    "name_ar": "دونات كراون كنافة بالشوكولاتة",
+    "name_en": "CHOCO KUNAFA CROWN",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_41",
+    "code": "12012007",
+    "name_ar": "دونات كوفي رول",
+    "name_en": "COFFEE ROLL",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_42",
+    "code": "12012011",
+    "name_ar": "علبة كوكيز",
+    "name_en": "COOKIE BOX",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_43",
+    "code": "12012023",
+    "name_ar": "دونات دارك ويف بالفستق",
+    "name_en": "DARKWAVE PISTACHIO",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_44",
+    "code": "12012019",
+    "name_ar": "دونات هارموني تمر بالبندق",
+    "name_en": "HAZELNUT DATES HARMONY",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_45",
+    "code": "12012018",
+    "name_ar": "دونات هارموني تمر بالبندق مخصصة",
+    "name_en": "HAZELNUT DATES HARMONY DONUT",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_46",
+    "code": "12012012",
+    "name_ar": "دونات مانجو ميراج",
+    "name_en": "MANGO MIRAGE",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_47",
+    "code": "12012013",
+    "name_ar": "دونات أوريو هازلنوفا",
+    "name_en": "OREO HAZENOVA",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_48",
+    "code": "12012021",
+    "name_ar": "دونات بستاشيو كريمي كرانش",
+    "name_en": "PISTACHIO CREAMY CRUNCH",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_49",
+    "code": "12012025",
+    "name_ar": "دونات روبي كرانش",
+    "name_en": "RUBY CRUNCH",
+    "category_ar": "دونات فانسي ومميز",
+    "category_en": "Fancy & Specialty Donuts"
+  },
+  {
+    "id": "prod_50",
+    "code": "13019001",
+    "name_ar": "فلاتر قهوة كولد برو",
+    "name_en": "DISPOSABLES.COLD BREW FILTER",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_51",
+    "code": "10083012",
+    "name_ar": "شراب (سيروب) بلو باي 1 لتر",
+    "name_en": "BLUE BAY SYRUP (6 X1 LTR)",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_52",
+    "code": "10083052",
+    "name_ar": "صوص كراميل في عبوة قلم 300 مل",
+    "name_en": "CARAMEL SAUCE PEN 300 ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_53",
+    "code": "10083025",
+    "name_ar": "بودرة ماتشا 1 كجم",
+    "name_en": "MATCHA POWDER -1KG",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_54",
+    "code": "10083044",
+    "name_ar": "بودرة ماتشا جست تشيل 1 كجم",
+    "name_en": "MATCHA POWDER JUST CHILL (1KGX12 PCS)",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_55",
+    "code": "10083014",
+    "name_ar": "بودرة شوكولاتة ساخنة (كيس 3 أرطال / 1.36 كجم)",
+    "name_en": "POWDER.CHOCOLATE HOT POWDER BAG 03 LBS",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_56",
+    "code": "10083013",
+    "name_ar": "مسحوق فرابيه تشيزكيك 1 كجم",
+    "name_en": "POWDER.FRAPPE-CHEESECAKE 1 KG",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_57",
+    "code": "10083009",
+    "name_ar": "صوص كراميل قلم 165 مل",
+    "name_en": "SYRUP.CARAMEL SAUCE PEN 165 ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_58",
+    "code": "10083003",
+    "name_ar": "شراب (سيروب) كراميل 750 مل",
+    "name_en": "SYRUP.CARAMEL SYRUP 750 ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_59",
+    "code": "10083043",
+    "name_ar": "شراب دا فينشي فراولة 750 مل",
+    "name_en": "SYRUP.DAVINCI STRAWBERRY SYRUP (12 X 750ML)",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_60",
+    "code": "10083007",
+    "name_ar": "شراب (سيروب) بندق 750 مل",
+    "name_en": "SYRUP.HAZELNUT SYRUP 750 ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_61",
+    "code": "10083008",
+    "name_ar": "صوص موكا قلم 165 مل",
+    "name_en": "SYRUP.MOCHA SAUCE PEN 165 ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_62",
+    "code": "10083017",
+    "name_ar": "شراب مونين توت أزرق 1 لتر",
+    "name_en": "SYRUP.MONIN BLUEBERRY SYRUP (6X1LTR)",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_63",
+    "code": "10083004",
+    "name_ar": "شراب مونين خوخ آيس تي 1 لتر",
+    "name_en": "SYRUP.MONIN PEACH ICETEA SYRUP 01 LTR",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_64",
+    "code": "10083005",
+    "name_ar": "شراب مونين رانشو ليمونادة 1 لتر",
+    "name_en": "SYRUP.MONIN RANCHO LEMONADE SYRUP 01 LTR",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_65",
+    "code": "10083010",
+    "name_ar": "شراب مونين فراولة 1 لتر",
+    "name_en": "SYRUP.MONIN STRAWBERRY SYRUP 01 LTR",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_66",
+    "code": "10083006",
+    "name_ar": "شراب (سيروب) فانيليا 750 مل",
+    "name_en": "SYRUP.VANILLA SYRUP 750 ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_67",
+    "code": "12021002",
+    "name_ar": "كرواسون بالجبن",
+    "name_en": "CHEESE CROISSANT",
+    "category_ar": "مخبوزات وساندوتشات",
+    "category_en": "Bakery & Sandwiches"
+  },
+  {
+    "id": "prod_68",
+    "code": "12021004",
+    "name_ar": "كرواسون بالشوكولاتة",
+    "name_en": "CHOCOLATE CROISSANT",
+    "category_ar": "مخبوزات وساندوتشات",
+    "category_en": "Bakery & Sandwiches"
+  },
+  {
+    "id": "prod_69",
+    "code": "12021006",
+    "name_ar": "كرواسون ميبل بيكان",
+    "name_en": "MAPLE PECAN CROISSANT",
+    "category_ar": "مخبوزات وساندوتشات",
+    "category_en": "Bakery & Sandwiches"
+  },
+  {
+    "id": "prod_70",
+    "code": "12021001",
+    "name_ar": "كرواسون سادة",
+    "name_en": "PLAIN CROISSANT",
+    "category_ar": "مخبوزات وساندوتشات",
+    "category_en": "Bakery & Sandwiches"
+  },
+  {
+    "id": "prod_71",
+    "code": "12021003",
+    "name_ar": "كرواسون بالزعتر",
+    "name_en": "ZAATER CROISSANT",
+    "category_ar": "مخبوزات وساندوتشات",
+    "category_en": "Bakery & Sandwiches"
+  },
+  {
+    "id": "prod_72",
+    "code": "10082004",
+    "name_ar": "بيوريه مانجو ودراجون فروت 1 لتر",
+    "name_en": "MANGO DRAGON FRUIT PUREE (6 X1 LTR)",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_73",
+    "code": "10082002",
+    "name_ar": "بيوريه التوت الأزرق 1 لتر",
+    "name_en": "SYRUP.BLUEBERRY PUREE 01 LTR",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_74",
+    "code": "10082001",
+    "name_ar": "بيوريه الكرز 1 لتر",
+    "name_en": "SYRUP.CHERRY PUREE 01 LTR",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_75",
+    "code": "12033005",
+    "name_ar": "زبادي جرانولا بالعسل (1 × 36 × 170 جم)",
+    "name_en": "HONEY GRANULA YOGHURT 1X36X170G",
+    "category_ar": "وجبات خفيفة ومكسرات",
+    "category_en": "Snacks & Nuts"
+  },
+  {
+    "id": "prod_76",
+    "code": "12033002",
+    "name_ar": "مكسرات بالكراميل (6 × 12 × 50 جم)",
+    "name_en": "MERCHANDISE.CARAMEL NUT 6X12X50G",
+    "category_ar": "وجبات خفيفة ومكسرات",
+    "category_en": "Snacks & Nuts"
+  },
+  {
+    "id": "prod_77",
+    "code": "12033001",
+    "name_ar": "مكسرات بالشوكولاتة الداكنة (6 × 12 × 50 جم)",
+    "name_en": "MERCHANDISE.DOUBLE DARK CHOC NUT 6X12X50G",
+    "category_ar": "وجبات خفيفة ومكسرات",
+    "category_en": "Snacks & Nuts"
+  },
+  {
+    "id": "prod_78",
+    "code": "14027026",
+    "name_ar": "مناديل ورقية 30×30 سم (1 × 4000 حبة)",
+    "name_en": "DISPOSABLES NAPKINS GF SIZE 30X30 CM 1X4000",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_79",
+    "code": "14027003",
+    "name_ar": "قفازات استخدام واحد (مغلف 500 حبة)",
+    "name_en": "DISPOSABLES.D. GLOVES 1 PACK",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_80",
+    "code": "14027006",
+    "name_ar": "كمامات وجه اقتصادية (مغلف 50 حبة)",
+    "name_en": "DISPOSABLES.ECONOMY FACE MASK 1 PACK",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_81",
+    "code": "14027008",
+    "name_ar": "مناديل رول جامبو أزرق",
+    "name_en": "DISPOSABLES.JUMBO ROLL-BLUE",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_82",
+    "code": "14027007",
+    "name_ar": "مناديل رول ماكسي",
+    "name_en": "DISPOSABLES.MAXI ROLL",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_83",
+    "code": "14027005",
+    "name_ar": "غطاء رأس شبكي للشعر (مغلف 100 حبة)",
+    "name_en": "DISPOSABLES.MOB CAP 1 PACK",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_84",
+    "code": "14027002",
+    "name_ar": "مناديل دانكن ورقية (1 × 3600 حبة)",
+    "name_en": "DISPOSABLES.NAPKINS DD (1X3600)",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_85",
+    "code": "14027009",
+    "name_ar": "أكياس نفايات سوداء (كرتون 300 حبة)",
+    "name_en": "DISPOSABLES.TRASH BAG BLACK",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_86",
+    "code": "12043002",
+    "name_ar": "عصير كرز 300 مل",
+    "name_en": "CHERRY JUICE 300ML",
+    "category_ar": "مياه وعصائر",
+    "category_en": "Water & Juices"
+  },
+  {
+    "id": "prod_87",
+    "code": "12043004",
+    "name_ar": "عصير مانجو 300 مل",
+    "name_en": "MANGO JUICE 300ML",
+    "category_ar": "مياه وعصائر",
+    "category_en": "Water & Juices"
+  },
+  {
+    "id": "prod_88",
+    "code": "12043003",
+    "name_ar": "عصير برتقال 300 مل",
+    "name_en": "ORANGE JUICE 300 ML",
+    "category_ar": "مياه وعصائر",
+    "category_en": "Water & Juices"
+  },
+  {
+    "id": "prod_89",
+    "code": "13022001",
+    "name_ar": "أغطية أكواب قهوة وشاي 10 أونصة",
+    "name_en": "LIDS COFFEE AND TEA CUPS LIDS 10OZ",
+    "category_ar": "أغطية الأكواب",
+    "category_en": "Cup Lids"
+  },
+  {
+    "id": "prod_90",
+    "code": "13022002",
+    "name_ar": "أغطية أكواب قهوة 14 و16 و20 أونصة",
+    "name_en": "LIDS COFFEE CUPS LIDS 14 16 20OZ",
+    "category_ar": "أغطية الأكواب",
+    "category_en": "Cup Lids"
+  },
+  {
+    "id": "prod_91",
+    "code": "13022007",
+    "name_ar": "أغطية أكواب قهوة وشاي مزدوجة الجدار 10 أونصة",
+    "name_en": "LIDS DW COFFEE AND TEA CUPS 10OZ",
+    "category_ar": "أغطية الأكواب",
+    "category_en": "Cup Lids"
+  },
+  {
+    "id": "prod_92",
+    "code": "13022008",
+    "name_ar": "أغطية أكواب قهوة وشاي مزدوجة الجدار 14 و16 و20 أونصة",
+    "name_en": "LIDS DW COFFEE AND TEA CUPS 14OZ 16OZ 20OZ",
+    "category_ar": "أغطية الأكواب",
+    "category_en": "Cup Lids"
+  },
+  {
+    "id": "prod_93",
+    "code": "13022010",
+    "name_ar": "أغطية أكواب قهوة وشاي مزدوجة الجدار 9 أونصة",
+    "name_en": "LIDS DW COFFEE AND TEA CUPS 9OZ",
+    "category_ar": "أغطية الأكواب",
+    "category_en": "Cup Lids"
+  },
+  {
+    "id": "prod_94",
+    "code": "13022004",
+    "name_ar": "أغطية بلاستيكية مقببة (دوم) 12 و16 و24 أونصة",
+    "name_en": "LIDS PLASTIC DOME LIDS 12 16 24OZ",
+    "category_ar": "أغطية الأكواب",
+    "category_en": "Cup Lids"
+  },
+  {
+    "id": "prod_95",
+    "code": "13022005",
+    "name_ar": "أغطية بلاستيكية مسطحة (فلات) 12 و16 و24 أونصة",
+    "name_en": "LIDS PLASTIC FLAT LIDS 12 16 24OZ",
+    "category_ar": "أغطية الأكواب",
+    "category_en": "Cup Lids"
+  },
+  {
+    "id": "prod_96",
+    "code": "13022003",
+    "name_ar": "أغطية أكواب قهوة 9 أونصة",
+    "name_en": "LIDS.COFFEE CUPS LIDS 9OZ",
+    "category_ar": "أغطية الأكواب",
+    "category_en": "Cup Lids"
+  },
+  {
+    "id": "prod_97",
+    "code": "13022011",
+    "name_ar": "أغطية بلاستيكية مقببة (دوم) 32 أونصة",
+    "name_en": "LIDS.PLASTIC DOME LIDS 32OZ",
+    "category_ar": "أغطية الأكواب",
+    "category_en": "Cup Lids"
+  },
+  {
+    "id": "prod_98",
+    "code": "13022009",
+    "name_ar": "أغطية بلاستيكية مسطحة (فلات) 32 أونصة",
+    "name_en": "LIDS.PLASTIC FLAT LIDS 32OZ",
+    "category_ar": "أغطية الأكواب",
+    "category_en": "Cup Lids"
+  },
+  {
+    "id": "prod_99",
+    "code": "13022028",
+    "name_ar": "أغطية علب الصوص 2 أونصة (20 مغلف × 100 حبة)",
+    "name_en": "SAUCE LID 2 OZ 20 PACK X 100 PCS",
+    "category_ar": "أغطية الأكواب",
+    "category_en": "Cup Lids"
+  },
+  {
+    "id": "prod_100",
+    "code": "13017007",
+    "name_ar": "فلاتر تحضير القهوة الكبيرة (500 حبة)",
+    "name_en": "DISPOSABLES.BULK BREWER FILTERS 1 PACK (500 PCS)",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_101",
+    "code": "13017006",
+    "name_ar": "فلاتر قهوة (500 حبة)",
+    "name_en": "DISPOSABLES.COFFEE FILTERS 1 PACK (500 PCS)",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_102",
+    "code": "13017008",
+    "name_ar": "ورق تغليف غير مشمع (1 × 2000 حبة)",
+    "name_en": "DISPOSABLES.UNWAX TISSUES (1X2000 PCS)",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_103",
+    "code": "13017002",
+    "name_ar": "ورق مانع للزيوت أسود (1 × 1000 حبة)",
+    "name_en": "GREASE PROOF BLACK LINER (BDL 1X1000 PCS)",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_104",
+    "code": "13017003",
+    "name_ar": "ورق بارشمنت للخبز 12 × 10.75 (1 × 400 حبة)",
+    "name_en": "PAPER PARCHMENT LINER 12 X 1075 1X400 PCS",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_105",
+    "code": "10021001",
+    "name_ar": "حليب كامل الدسم 1 لتر",
+    "name_en": "MILK.FULL FAT MILK 01 LTR",
+    "category_ar": "أجبان وألبان",
+    "category_en": "Dairy & Cheeses"
+  },
+  {
+    "id": "prod_106",
+    "code": "10021002",
+    "name_ar": "حليب قليل الدسم 1 لتر",
+    "name_en": "MILK.LOW FAT MILK 01 LTR",
+    "category_ar": "أجبان وألبان",
+    "category_en": "Dairy & Cheeses"
+  },
+  {
+    "id": "prod_107",
+    "code": "10024001",
+    "name_ar": "مشروب حليب اللوز الأصلي 8 × 1 لتر",
+    "name_en": "MILK ALMOND DRINK ORIGINAL 8X1LTR",
+    "category_ar": "أجبان وألبان",
+    "category_en": "Dairy & Cheeses"
+  },
+  {
+    "id": "prod_108",
+    "code": "10024002",
+    "name_ar": "مشروب حليب جوز الهند الأصلي 12 × 1 لتر",
+    "name_en": "MILK COCONUT DRINK ORIGINAL 12X1LTR",
+    "category_ar": "أجبان وألبان",
+    "category_en": "Dairy & Cheeses"
+  },
+  {
+    "id": "prod_109",
+    "code": "10151001",
+    "name_ar": "مياه صودا فوارة 24 × 300 مل",
+    "name_en": "SPARKLING SODA 24X300ML",
+    "category_ar": "مياه وعصائر",
+    "category_en": "Water & Juices"
+  },
+  {
+    "id": "prod_110",
+    "code": "10151003",
+    "name_ar": "مياه صودا فوارة 30 × 250 مل",
+    "name_en": "SPARKLING SODA 30X250ML",
+    "category_ar": "مياه وعصائر",
+    "category_en": "Water & Juices"
+  },
+  {
+    "id": "prod_111",
+    "code": "14013001",
+    "name_ar": "رأس ممسحة أرضيات (كرتون 36 حبة)",
+    "name_en": "DISPOSABLES.MOPHEAD (1 CTNX36PCS)",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_112",
+    "code": "14013003",
+    "name_ar": "رأس ممسحة أصفر إيكولاب",
+    "name_en": "ECOLAB. MOP HEAD YELLOW",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_113",
+    "code": "12013001",
+    "name_ar": "مونشكين بافاريان",
+    "name_en": "BAVARIAN MUNCHKIN",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_114",
+    "code": "12013005",
+    "name_ar": "مونشكين كيك بترنت",
+    "name_en": "CAKE BUTTERNUT MUNCHKINS",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_115",
+    "code": "12013007",
+    "name_ar": "مونشكين شوكولاتة جليزد",
+    "name_en": "CHOCO GLAZED MUNCHKIN",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_116",
+    "code": "12013011",
+    "name_ar": "مونشكين كيك جليزد",
+    "name_en": "GLAZED CAKE MUNCHKINS",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_117",
+    "code": "12013002",
+    "name_ar": "مونشكين جليزد مخمر",
+    "name_en": "GLAZED YEAST MUNCHKIN",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_118",
+    "code": "16021005",
+    "name_ar": "رول ورق حراري لشبكة مدى (1 × 100 رول)",
+    "name_en": "PAPER.MADA THERMAL ROLL (1X100 PCS)",
+    "category_ar": "قرطاسية وملصقات",
+    "category_en": "Stationery & Labels"
+  },
+  {
+    "id": "prod_119",
+    "code": "16021004",
+    "name_ar": "رول ورق طابعة الفواتير حراري (5 حبات)",
+    "name_en": "PAPER.RECEIPT PRINTER ROLLS THERMO",
+    "category_ar": "قرطاسية وملصقات",
+    "category_en": "Stationery & Labels"
+  },
+  {
+    "id": "prod_120",
+    "code": "16021010",
+    "name_ar": "رول ملصقات توصيل دانكن",
+    "name_en": "STATIONARY.DUNKIN DELIVERY STICKERS ROLL",
+    "category_ar": "قرطاسية وملصقات",
+    "category_en": "Stationery & Labels"
+  },
+  {
+    "id": "prod_121",
+    "code": "16021008",
+    "name_ar": "رول ملصقات مدة الصلاحية (1 × 1000)",
+    "name_en": "STATIONARY.SHELF LIFE STICKERS ROLL (1X1000)",
+    "category_ar": "قرطاسية وملصقات",
+    "category_en": "Stationery & Labels"
+  },
+  {
+    "id": "prod_122",
+    "code": "10011004",
+    "name_ar": "حبوب قهوة دانكن (كيس 2.5 رطل)",
+    "name_en": "COFFEE.DD COFFEE BEANS BAG 2.5 LBS",
+    "category_ar": "قهوة وكبسولات",
+    "category_en": "Coffee & Capsules"
+  },
+  {
+    "id": "prod_123",
+    "code": "10011001",
+    "name_ar": "حبوب قهوة دانكن (كيس 5 أرطال)",
+    "name_en": "COFFEE.DD COFFEE BEANS BAG 5 LBS",
+    "category_ar": "قهوة وكبسولات",
+    "category_en": "Coffee & Capsules"
+  },
+  {
+    "id": "prod_124",
+    "code": "10011002",
+    "name_ar": "قهوة دانكن مطحونة (كيس 1 رطل)",
+    "name_en": "COFFEE.DD COFFEE GROUNDS BAG 01 LBS",
+    "category_ar": "قهوة وكبسولات",
+    "category_en": "Coffee & Capsules"
+  },
+  {
+    "id": "prod_125",
+    "code": "10011003",
+    "name_ar": "حبوب قهوة دانكن دارك روست كاملة (كيس 2 رطل)",
+    "name_en": "COFFEE.DD DARK ROAST WHOLE BEAN BAG 02 LBS",
+    "category_ar": "قهوة وكبسولات",
+    "category_en": "Coffee & Capsules"
+  },
+  {
+    "id": "prod_126",
+    "code": "15021006",
+    "name_ar": "بنطلون زي موحد مقاس 34",
+    "name_en": "UNIFORM PANTS 34",
+    "category_ar": "زي الموظفين",
+    "category_en": "Staff Uniforms"
+  },
+  {
+    "id": "prod_127",
+    "code": "15021007",
+    "name_ar": "بنطلون زي موحد مقاس 36",
+    "name_en": "UNIFORM PANTS 36",
+    "category_ar": "زي الموظفين",
+    "category_en": "Staff Uniforms"
+  },
+  {
+    "id": "prod_128",
+    "code": "13014001",
+    "name_ar": "أكياس ورقية بنية 5 أرطال (1 × 1000 حبة)",
+    "name_en": "BAGS.BAG BROWN 5 LBS (1X1000 PCS)",
+    "category_ar": "أكياس التعبئة والتسوق",
+    "category_en": "Packaging & Shopping Bags"
+  },
+  {
+    "id": "prod_129",
+    "code": "13012010",
+    "name_ar": "صندوق بوكس أوف جو دانكن 112 أونصة",
+    "name_en": "BOXES.BOX O JOE (DUNKIN BOX 112 OZ)",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_130",
+    "code": "13012019",
+    "name_ar": "صندوق بوكس أوف جو دانكن 20 أونصة",
+    "name_en": "BOXES.BOX O JOE(DUNKIN BOX 20OZ)",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_131",
+    "code": "13012018",
+    "name_ar": "صندوق بوكس أوف جو دانكن 40 أونصة",
+    "name_en": "BOXES.BOX O JOE(DUNKIN BOX 40OZ)",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_132",
+    "code": "13012020",
+    "name_ar": "صندوق بوكس أوف جو دانكن برتقالي 40 أونصة",
+    "name_en": "BOXES.BOX O JOE(ORANGE BOX 40OZ)",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_133",
+    "code": "13012007",
+    "name_ar": "علبة دونات 3 حبات للسعودية",
+    "name_en": "BOXES.BOX OF 3 FOR KSA",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_134",
+    "code": "13012006",
+    "name_ar": "مقسم علبة دونات 12 حبة",
+    "name_en": "BOXES.DIVIDER 12PCS FOR DONUT BOX 12PCS",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_135",
+    "code": "13012005",
+    "name_ar": "مقسم علبة دونات 6 حبات",
+    "name_en": "BOXES.DIVIDER 6PCS FOR DONUT BOX 6PCS",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_136",
+    "code": "13012001",
+    "name_ar": "علبة دونات 6 حبات",
+    "name_en": "BOXES.DONUT BOX 6 PCS",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_137",
+    "code": "13012002",
+    "name_ar": "علبة دونات مطبوعة 12 حبة",
+    "name_en": "BOXES.DONUT BOX PRINTED 12 PCS",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_138",
+    "code": "13012003",
+    "name_ar": "علبة مونشكين سعة 25 حبة",
+    "name_en": "BOXES.MUNCHKIN BOX OF 25",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_139",
+    "code": "13011004",
+    "name_ar": "أكواب قهوة وشاي 10 أونصة",
+    "name_en": "CUPS COFFEE AND TEA CUPS 10OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_140",
+    "code": "13011011",
+    "name_ar": "أكواب قهوة وشاي مزدوجة الجدار 10 أونصة",
+    "name_en": "CUPS DW COFFEE AND TEA CUPS 10OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_141",
+    "code": "13011012",
+    "name_ar": "أكواب قهوة وشاي مزدوجة الجدار 14 أونصة",
+    "name_en": "CUPS DW COFFEE AND TEA CUPS 14OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_142",
+    "code": "13011014",
+    "name_ar": "أكواب قهوة وشاي مزدوجة الجدار 16 أونصة",
+    "name_en": "CUPS DW COFFEE AND TEA CUPS 16OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_143",
+    "code": "13011015",
+    "name_ar": "أكواب قهوة وشاي مزدوجة الجدار 20 أونصة",
+    "name_en": "CUPS DW COFFEE AND TEA CUPS 20OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_144",
+    "code": "13011013",
+    "name_ar": "أكواب قهوة وشاي مزدوجة الجدار 9 أونصة",
+    "name_en": "CUPS DW COFFEE AND TEA CUPS 9OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_145",
+    "code": "13011006",
+    "name_ar": "أكواب قهوة أحادية الجدار 16 أونصة",
+    "name_en": "CUPS.COFFEE CUPS 16OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_146",
+    "code": "13011007",
+    "name_ar": "أكواب قهوة أحادية الجدار 20 أونصة",
+    "name_en": "CUPS.COFFEE CUPS 20OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_147",
+    "code": "13011008",
+    "name_ar": "أكواب قهوة أحادية الجدار 9 أونصة",
+    "name_en": "CUPS.COFFEE CUPS 9OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_148",
+    "code": "13011016",
+    "name_ar": "أكواب كابتشينو مزدوجة الجدار 10 أونصة",
+    "name_en": "CUPS.D/W CAPPUCCINO CUP 10OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_149",
+    "code": "13011019",
+    "name_ar": "أكواب كابتشينو مزدوجة الجدار 12 أونصة",
+    "name_en": "CUPS.D/W CAPPUCCINO CUP 12OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_150",
+    "code": "13011017",
+    "name_ar": "أكواب كابتشينو مزدوجة الجدار 16 أونصة",
+    "name_en": "CUPS.D/W CAPPUCCINO CUP 16 OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_151",
+    "code": "13011018",
+    "name_ar": "أكواب كابتشينو مزدوجة الجدار 20 أونصة",
+    "name_en": "CUPS.D/W CAPPUCCINO CUP 20 OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_152",
+    "code": "13011010",
+    "name_ar": "أكواب إسبريسو 4 أونصة",
+    "name_en": "CUPS.ESPRESSO CUPS 4OZ",
+    "category_ar": "أكواب ساخنة",
+    "category_en": "Hot Drink Cups"
+  },
+  {
+    "id": "prod_153",
+    "code": "13023002",
+    "name_ar": "أكياس تسوق دانكن كبيرة",
+    "name_en": "BAGS.DD SHOPPING BAGS LARGE",
+    "category_ar": "أكياس التعبئة والتسوق",
+    "category_en": "Packaging & Shopping Bags"
+  },
+  {
+    "id": "prod_154",
+    "code": "13023003",
+    "name_ar": "أكياس تسوق دانكن صغيرة",
+    "name_en": "BAGS.DD SHOPPING BAGS SMALL",
+    "category_ar": "أكياس التعبئة والتسوق",
+    "category_en": "Packaging & Shopping Bags"
+  },
+  {
+    "id": "prod_155",
+    "code": "13021005",
+    "name_ar": "أكواب باردة شفافة بلاستيك 12 أونصة",
+    "name_en": "CUPS.COLD CUP CLEAR PLASTIC - 12 OZ",
+    "category_ar": "الأكواب الباردة",
+    "category_en": "Cold Drink Cups"
+  },
+  {
+    "id": "prod_156",
+    "code": "13021001",
+    "name_ar": "أكواب باردة بلاستيك 4 أونصة",
+    "name_en": "CUPS.COLD CUPS 4OZ",
+    "category_ar": "الأكواب الباردة",
+    "category_en": "Cold Drink Cups"
+  },
+  {
+    "id": "prod_157",
+    "code": "13021002",
+    "name_ar": "أكواب باردة بلاستيك 16 أونصة",
+    "name_en": "CUPS.COLD CUPS PLASTIC 16OZ",
+    "category_ar": "الأكواب الباردة",
+    "category_en": "Cold Drink Cups"
+  },
+  {
+    "id": "prod_158",
+    "code": "13021003",
+    "name_ar": "أكواب باردة بلاستيك 24 أونصة",
+    "name_en": "CUPS.COLD CUPS PLASTIC 24OZ",
+    "category_ar": "الأكواب الباردة",
+    "category_en": "Cold Drink Cups"
+  },
+  {
+    "id": "prod_159",
+    "code": "13021006",
+    "name_ar": "أكواب باردة بلاستيك 32 أونصة",
+    "name_en": "CUPS.COLD CUPS PLASTIC 32OZ",
+    "category_ar": "الأكواب الباردة",
+    "category_en": "Cold Drink Cups"
+  },
+  {
+    "id": "prod_160",
+    "code": "13021004",
+    "name_ar": "أكواب بلاستيكية للعينات / البورشن (مغلف 50 حبة)",
+    "name_en": "CUPS.PORTION PLASTIC CUPS SLEEVE (1X50 PCS)",
+    "category_ar": "الأكواب الباردة",
+    "category_en": "Cold Drink Cups"
+  },
+  {
+    "id": "prod_161",
+    "code": "13021021",
+    "name_ar": "علب صوص بلاستيك 2 أونصة (20 مغلف × 100 حبة)",
+    "name_en": "SAUCE CUP 2 OZ 20 PACK X 100 PCS",
+    "category_ar": "الأكواب الباردة",
+    "category_en": "Cold Drink Cups"
+  },
+  {
+    "id": "prod_162",
+    "code": "10092001",
+    "name_ar": "مرتديلا دجاج (مغلف 5 حبات)",
+    "name_en": "MORTADELLA.CHICKEN MORTADELLA",
+    "category_ar": "دواجن ولحوم",
+    "category_en": "Poultry & Meats"
+  },
+  {
+    "id": "prod_163",
+    "code": "10092018",
+    "name_ar": "بيض مجمد للساندوتش 1 كجم",
+    "name_en": "SANDWICH FROZEN EGG 1KG",
+    "category_ar": "دواجن ولحوم",
+    "category_en": "Poultry & Meats"
+  },
+  {
+    "id": "prod_164",
+    "code": "10092002",
+    "name_ar": "بيض سائل مبستر مبرد للساندوتش 1 كجم",
+    "name_en": "SANDWICH.LIQUID WHOLE EGG CHILLED PAST 1KG",
+    "category_ar": "دواجن ولحوم",
+    "category_en": "Poultry & Meats"
+  },
+  {
+    "id": "prod_165",
+    "code": "12011052",
+    "name_ar": "دونات لوز وبندق",
+    "name_en": "ALMOND HAZELNUT",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_166",
+    "code": "12011034",
+    "name_ar": "دونات بوستون كريم",
+    "name_en": "BOSTON CREAM DONUT",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_167",
+    "code": "12011100",
+    "name_ar": "دونات شوكو كوكو",
+    "name_en": "CHOCO COCO DONUT",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_168",
+    "code": "12011001",
+    "name_ar": "دونات شوكولاتة فروستد",
+    "name_en": "CHOCO FROSTED DONUT",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_169",
+    "code": "12011006",
+    "name_ar": "دونات شوكولاتة سبرنكلز",
+    "name_en": "CHOCO SPRINKLE",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_170",
+    "code": "12011085",
+    "name_ar": "دونات كولد برو كرانش",
+    "name_en": "COLD BREW CRUNCH DONUT",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_171",
+    "code": "12011088",
+    "name_ar": "دونات كوكيز",
+    "name_en": "COOKIE DONUT",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_172",
+    "code": "12011069",
+    "name_ar": "دونات كوكيز آند كريم ماربل",
+    "name_en": "COOKIES AND CREAM MARBLE",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_173",
+    "code": "12011082",
+    "name_ar": "دونات كوتن كاندي بف",
+    "name_en": "COTTON CANDY PUFF",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_174",
+    "code": "12011002",
+    "name_ar": "دونات جليزد سادة",
+    "name_en": "GLAZED DONUT",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_175",
+    "code": "12011098",
+    "name_ar": "دونات كنافة شوكو كرانش",
+    "name_en": "KUNAFA CHOCO CRUNCH",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_176",
+    "code": "12011064",
+    "name_ar": "دونات لونج جون",
+    "name_en": "LONG JOHN",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_177",
+    "code": "12011094",
+    "name_ar": "ميني دونات شوكو فروست",
+    "name_en": "MINI CHOCO FROST",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_178",
+    "code": "12011096",
+    "name_ar": "ميني دونات كريمة التمر",
+    "name_en": "MINI DATES CREAM",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_179",
+    "code": "12011067",
+    "name_ar": "دونات أولد فاشوند",
+    "name_en": "OLD FASHIONED DONUT",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_180",
+    "code": "12011099",
+    "name_ar": "دونات بينك بيري",
+    "name_en": "PINK BERRY",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_181",
+    "code": "12011092",
+    "name_ar": "دونات بيربل فلفيت كريم",
+    "name_en": "PURPLE VELVET CREAM",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_182",
+    "code": "12011093",
+    "name_ar": "دونات بيربل فلفيت سبرنكل",
+    "name_en": "PURPLE VELVET SPRINKLE",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_183",
+    "code": "12011101",
+    "name_ar": "دونات تشيزكيك الفراولة كرانش",
+    "name_en": "STRAWBERRY CHEESECAKE CRUNCH",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_184",
+    "code": "12011044",
+    "name_ar": "دونات تشيزكيك الفراولة",
+    "name_en": "STRAWBERRY CHESSECAKE",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_185",
+    "code": "12011056",
+    "name_ar": "دونات تيراميسو تشيزكيك",
+    "name_en": "TIRAMISU CHEESECAKE",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_186",
+    "code": "12011087",
+    "name_ar": "دونات فانيليا كاندي سبرنكل",
+    "name_en": "VANILLA CANDY SPRINKLE DONUT",
+    "category_ar": "مونشكين ودونات عادي",
+    "category_en": "Munchkins & Regular Donuts"
+  },
+  {
+    "id": "prod_187",
+    "code": "14022002",
+    "name_ar": "جل معقم لليدين (زجاجة)",
+    "name_en": "CHEMICALS.HAND SANITIZING GEL BOTTLE",
+    "category_ar": "المنظفات والمعقمات",
+    "category_en": "Detergents & Sanitizers"
+  },
+  {
+    "id": "prod_188",
+    "code": "14022003",
+    "name_ar": "أقراص معقم إيكولاب كاي 5 (علبة 240 قرص)",
+    "name_en": "ECOLAB KAY 5 SANITIZER TABLET 1 BOX (240 TABLETS)",
+    "category_ar": "المنظفات والمعقمات",
+    "category_en": "Detergents & Sanitizers"
+  },
+  {
+    "id": "prod_189",
+    "code": "10061045",
+    "name_ar": "كوكيز قطع الشوكولاتة",
+    "name_en": "CHOCO CHIP COOKIES",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_190",
+    "code": "10061017",
+    "name_ar": "صوص زعفران (4 × 1.89 لتر)",
+    "name_en": "SAFFRON SAUCE (4 X 1.89 LTR)",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_191",
+    "code": "10061002",
+    "name_ar": "صوص أرابيسكي كراميل مملح 3 كجم للفرابيه",
+    "name_en": "SAUCE.ARABESCHI CARAMEL FLEUR DE SEL 3 KG FOR FRAPPE",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_192",
+    "code": "10061004",
+    "name_ar": "صوص أرابيسكي فراولة إكسترا 1 كجم",
+    "name_en": "SAUCE.ARABESCHI STRAWBERRY EXTRA 1 KG",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_193",
+    "code": "10061016",
+    "name_ar": "صوص شيبوتلي مايونيز 225 مل",
+    "name_en": "SAUCE.CHIPOTLE MAYONNAISE 225ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_194",
+    "code": "10061011",
+    "name_ar": "صوص بنكهة الشوكولاتة 2 لتر",
+    "name_en": "SAUCE.CHOCOLATE FLAVORED SAUCE (2 LTR)",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_195",
+    "code": "10061010",
+    "name_ar": "صوص كراميل مملح دا فينشي 2 لتر للاتيه",
+    "name_en": "SAUCE.DA VINCI SALTED CARAMEL SAUCE 2LTR FOR LATTE",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_196",
+    "code": "10061019",
+    "name_ar": "صوص دا فينشي جورميه بنكهة القهوة العربية (3 × 2 لتر)",
+    "name_en": "SAUCE.DAVINCI GOURMET ARABIC COFFEE FLAVORED SAUCE (3PX2L)",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_197",
+    "code": "10061012",
+    "name_ar": "صوص ليمونادة 1 لتر",
+    "name_en": "SAUCE.LEMONADE 1 LTR",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_198",
+    "code": "10061007",
+    "name_ar": "صوص مايونيز كريمي 400 مل",
+    "name_en": "SAUCE.MAYONNAISE CREAMY 400ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_199",
+    "code": "10061006",
+    "name_ar": "صوص كاتشب طماطم 570 مل",
+    "name_en": "SAUCE.TOMATO KETCHUP 570ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_200",
+    "code": "10061013",
+    "name_ar": "صوص بطيخ 750 مل",
+    "name_en": "SAUCE.WATERMELON 750ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_201",
+    "code": "10061005",
+    "name_ar": "صوص شوكولاتة بيضاء 2 لتر",
+    "name_en": "SAUCE.WHITE CHOCOLATE SAUCE 2 LTR",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_202",
+    "code": "10061018",
+    "name_ar": "صوص بيستو 185 جم",
+    "name_en": "SPREADS.PESTO SAUCE 185 GM",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_203",
+    "code": "10061001",
+    "name_ar": "صوص تاباسكو سيراتشا (300 جم)",
+    "name_en": "TABASCO SRIRACHA SAUCE (300 GRM)",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_204",
+    "code": "10063002",
+    "name_ar": "عسل طبيعي 380 جم",
+    "name_en": "SPREADS.HONEY 380 GM",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_205",
+    "code": "14021004",
+    "name_ar": "صابون غسيل أيدي كاي 4 جالون",
+    "name_en": "CHEMICALS.KAY QSR AMH HAND WASH 4 GALLON",
+    "category_ar": "المنظفات والمعقمات",
+    "category_en": "Detergents & Sanitizers"
+  },
+  {
+    "id": "prod_206",
+    "code": "14021003",
+    "name_ar": "صابون يدين نافكير 1 لتر",
+    "name_en": "CHEMICALS.NAPHCARE-HAND SOAP 1 LTR",
+    "category_ar": "المنظفات والمعقمات",
+    "category_en": "Detergents & Sanitizers"
+  },
+  {
+    "id": "prod_207",
+    "code": "14021001",
+    "name_ar": "منظف متعدد الاستخدامات إيكولاب كاي (علبة 168 ظرف)",
+    "name_en": "ECOLAB CHEMICALS.KAY MULTI PURPOSE 1 BOX (168 SACHETS)",
+    "category_ar": "المنظفات والمعقمات",
+    "category_en": "Detergents & Sanitizers"
+  },
+  {
+    "id": "prod_208",
+    "code": "99021099",
+    "name_ar": "كبسولات نيتروجين N2O للكريمة ISI (علبة 10 حبات)",
+    "name_en": "ISI N2O CREAM CHARGER IS-0703 (BOX-10PCS)",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_209",
+    "code": "99021027",
+    "name_ar": "جهاز موزع مناديل ماكسي رول",
+    "name_en": "MAXI ROLL DISPENSER",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_210",
+    "code": "99021023",
+    "name_ar": "جهاز موزع صابون",
+    "name_en": "SOAP DISPENSER",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_211",
+    "code": "13025002",
+    "name_ar": "شفاطات بلاستيكية كبيرة (مغلف 1 × 100 حبة)",
+    "name_en": "DISPOSABLES.PLASTIC STRAW BIG (1X100 PCS)",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_212",
+    "code": "13025001",
+    "name_ar": "شفاطات بلاستيكية صغيرة (مغلف 1 × 250 حبة)",
+    "name_en": "DISPOSABLES.PLASTIC STRAW SMALL (1X250 PCS)",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_213",
+    "code": "10141003",
+    "name_ar": "أصابع سكر بني (1 × 2000 حبة)",
+    "name_en": "SUGAR.BROWN SUGAR STICK (1X2000)",
+    "category_ar": "السكر والمحليات",
+    "category_en": "Sugar & Sweeteners"
+  },
+  {
+    "id": "prod_214",
+    "code": "10141002",
+    "name_ar": "أصابع سكر أبيض 5 جم (1 × 2000 حبة)",
+    "name_en": "SUGAR.SUGAR STICK 5GM (1X2000)",
+    "category_ar": "السكر والمحليات",
+    "category_en": "Sugar & Sweeteners"
+  },
+  {
+    "id": "prod_215",
+    "code": "10141004",
+    "name_ar": "سكر دايت تروبيكانا سليم (1 × 1200 ظرف)",
+    "name_en": "SUGAR.TROPICANA SLIM SUGAR (1X1200)",
+    "category_ar": "السكر والمحليات",
+    "category_en": "Sugar & Sweeteners"
+  },
+  {
+    "id": "prod_216",
+    "code": "10081001",
+    "name_ar": "شراب قصب السكر 750 مل",
+    "name_en": "SYRUP.SUGAR CANE SYRUP 750 ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_217",
+    "code": "10131001",
+    "name_ar": "شاي أسود بولد بريكفاست (15 كيس / علبة)",
+    "name_en": "TEA.BOLDBREAKFAST BLACK TEA (1X15 /BOX)",
+    "category_ar": "شاي ومشروبات",
+    "category_en": "Tea & Beverages"
+  },
+  {
+    "id": "prod_218",
+    "code": "10131002",
+    "name_ar": "شاي كرك 500 جم",
+    "name_en": "TEA.KARAK CHAI 500GM",
+    "category_ar": "شاي ومشروبات",
+    "category_en": "Tea & Beverages"
+  },
+  {
+    "id": "prod_219",
+    "code": "14028001",
+    "name_ar": "شرائط اختبار الكلور إيكولاب كاي",
+    "name_en": "ECOLAB CHEMICALS.KAY CHLORINE TEST STRIPS",
+    "category_ar": "المنظفات والمعقمات",
+    "category_en": "Detergents & Sanitizers"
+  },
+  {
+    "id": "prod_220",
+    "code": "10122001",
+    "name_ar": "توست تكساس دانكن (1 × 100 حبة)",
+    "name_en": "SANDWICH.DD TOAST TEXAS (1X100 PCS)",
+    "category_ar": "مخبوزات وساندوتشات",
+    "category_en": "Bakery & Sandwiches"
+  },
+  {
+    "id": "prod_221",
+    "code": "15011012",
+    "name_ar": "تي شيرت بائع مقاس (L)",
+    "name_en": "UNIFORM.SALESMAN T-SHIRT (L)",
+    "category_ar": "زي الموظفين",
+    "category_en": "Staff Uniforms"
+  },
+  {
+    "id": "prod_222",
+    "code": "15011014",
+    "name_ar": "تي شيرت بائع مقاس (M)",
+    "name_en": "UNIFORM.SALESMAN T-SHIRT(M)",
+    "category_ar": "زي الموظفين",
+    "category_en": "Staff Uniforms"
+  },
+  {
+    "id": "prod_223",
+    "code": "12051001",
+    "name_ar": "زجاجة بلوتوث سوداء 500 مل",
+    "name_en": "BLUETOOTH BOTTLEBLACK 500ML",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_224",
+    "code": "12051002",
+    "name_ar": "زجاجة بلوتوث برتقالية 500 مل",
+    "name_en": "BLUETOOTH BOTTLEORANGE 500ML",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_225",
+    "code": "12051003",
+    "name_ar": "كوب حافظ حرارة بلوتوث أسود 800 مل",
+    "name_en": "BLUETOOTH TUMBLERBLACK 800ML",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_226",
+    "code": "12051004",
+    "name_ar": "كوب حافظ حرارة بلوتوث أبيض 800 مل",
+    "name_en": "BLUETOOTH TUMBLERWHITE 800ML",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_227",
+    "code": "12051008",
+    "name_ar": "مطارة ماء رياضية سيليكون برتقالية 2 لتر",
+    "name_en": "GYM SILICON L ORANGE 2LTR",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_228",
+    "code": "12051006",
+    "name_ar": "مطارة ماء رياضية سيليكون بيضاء 600 مل",
+    "name_en": "GYM SILICON R WHITE 600ML",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_229",
+    "code": "12051014",
+    "name_ar": "ماج حافظ للحرارة مفرغ من الهواء 480 مل",
+    "name_en": "MERCHANDISE.VACUUM MUG 480ML",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_230",
+    "code": "12051012",
+    "name_ar": "كوب بيلموا بريميوم برتقالي 473 مل",
+    "name_en": "PILMOA PREMIUM ORANGE 473ML",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_231",
+    "code": "12051011",
+    "name_ar": "كوب بيلموا بريميوم ستانلس ستيل 473 مل",
+    "name_en": "PILMOA PREMIUM SUS 473ML",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_232",
+    "code": "12051010",
+    "name_ar": "كوب بيلموا بريميوم أبيض 473 مل",
+    "name_en": "PILMOA PREMIUM WHITE 473ML",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_233",
+    "code": "12051040",
+    "name_ar": "تملبر شوكولار دانكن أسود",
+    "name_en": "TUMBLER.CHOCOLAR TUMBLER DD - BLACK",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_234",
+    "code": "12051052",
+    "name_ar": "كوب دانكن الجديد العادي",
+    "name_en": "TUMBLER.NEW DUNKIN MUG REGULAR",
+    "category_ar": "أكواب وتامبلرات مبيعات",
+    "category_en": "Retail Tumblers & Mugs"
+  },
+  {
+    "id": "prod_235",
+    "code": "12041004",
+    "name_ar": "مياه إيفيان فوارة علب 24 × 0.33 لتر",
+    "name_en": "EVIAN SPARKLING WATER CAN 24 X 0.33L",
+    "category_ar": "مياه وعصائر",
+    "category_en": "Water & Juices"
+  },
+  {
+    "id": "prod_236",
+    "code": "12041005",
+    "name_ar": "مياه كينزا فوارة زجاجة 250 مل",
+    "name_en": "KINZA-SPARKLING WATER BOTTLE 250ML",
+    "category_ar": "مياه وعصائر",
+    "category_en": "Water & Juices"
+  },
+  {
+    "id": "prod_237",
+    "code": "12041002",
+    "name_ar": "مياه إيفيان زجاجة 500 مل",
+    "name_en": "WATER.EVIAN WATER BOTTLE 500 ML",
+    "category_ar": "مياه وعصائر",
+    "category_en": "Water & Juices"
+  },
+  {
+    "id": "prod_238",
+    "code": "12041003",
+    "name_ar": "مياه نوفا زجاجة 330 مل",
+    "name_en": "WATER.NOVA WATER BOTTLE 330 ML",
+    "category_ar": "مياه وعصائر",
+    "category_en": "Water & Juices"
+  },
+  {
+    "id": "prod_239",
+    "code": "14012001",
+    "name_ar": "ممسحة أرضيات",
+    "name_en": "DISPOSABLES.FLOOR WIPER",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_240",
+    "code": "13051001",
+    "name_ar": "أعواد تحريك خشبية (1 × 1000 حبة)",
+    "name_en": "DISPOSABLES.STIR STICKS (1X1000 PCS)",
+    "category_ar": "مستلزمات ونظافة",
+    "category_en": "Supplies & Cleaning"
+  },
+  {
+    "id": "prod_241",
+    "code": "13013001",
+    "name_ar": "أكياس تغليف ساندوتش ورقية (1 × 2000 حبة)",
+    "name_en": "BAGS.WRAP SANDWICH BAG (1X2000 PCS)",
+    "category_ar": "أكياس التعبئة والتسوق",
+    "category_en": "Packaging & Shopping Bags"
+  },
+  {
+    "id": "prod_242",
+    "code": "10083056",
+    "name_ar": "شراب ليمونادة يالوفا (كرتون × 6 حبات × 750 مل)",
+    "name_en": "LEMONADE SYRUP YALOVA (CTN x 6 PCS x 750 ML)",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_243",
+    "code": "10131011",
+    "name_ar": "شاي كركديه (كرتون × 24 حبة × 250 جم)",
+    "name_en": "HIBISCUS TEA (CTN X 24 PCS X 250 GRM)",
+    "category_ar": "شاي ومشروبات",
+    "category_en": "Tea & Beverages"
+  },
+  {
+    "id": "prod_244",
+    "code": "10082003",
+    "name_ar": "شراب (سيروب) بطيخ 750 مل",
+    "name_en": "WATERMELON SYRUP 750ML",
+    "category_ar": "الشرابات والصلصات والبودرة",
+    "category_en": "Syrups, Sauces & Powders"
+  },
+  {
+    "id": "prod_245",
+    "code": "14021008",
+    "name_ar": "دايفرسي - رغوة عناية ناعمة لليدين H42",
+    "name_en": "DIVERSEY-SOFT CARE FOAM H42",
+    "category_ar": "المنظفات والمعقمات",
+    "category_en": "Detergents & Sanitizers"
+  },
+  {
+    "id": "prod_246",
+    "code": "14022009",
+    "name_ar": "دايفرسي - معقم عناية ناعمة E H5 (5 لتر)",
+    "name_en": "DIVERSEY-SOFTCARE DES E H5 5LITER",
+    "category_ar": "المنظفات والمعقمات",
+    "category_en": "Detergents & Sanitizers"
+  },
+  {
+    "id": "prod_247",
+    "code": "14024003",
+    "name_ar": "دايفرسي - سوما مزيل تكلسات D5",
+    "name_en": "DIVERSEY-SUMA CAL-X D5 5",
+    "category_ar": "المنظفات والمعقمات",
+    "category_en": "Detergents & Sanitizers"
+  },
+  {
+    "id": "prod_248",
+    "code": "14022010",
+    "name_ar": "دايفرسي - سوما منظف شوايات للحرارة العالية D9.8",
+    "name_en": "DIVERSEY-SUMA GRILL HI-TEMP D9.8 750ML",
+    "category_ar": "المنظفات والمعقمات",
+    "category_en": "Detergents & Sanitizers"
+  },
+  {
+    "id": "prod_249",
+    "code": "13012062",
+    "name_ar": "صندوق دريم دونات سكويشيز 10 حبات",
+    "name_en": "DREAM DONUT BOX SQUISHIES 10 PCS (CTN x 200 Pcs)",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_250",
+    "code": "13012063",
+    "name_ar": "صندوق دريم دونات سكويشيز 20 حبة",
+    "name_en": "DREAM DONUT BOX SQUISHIES 20 PCS (CTN x 100 Pcs)",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_251",
+    "code": "13012064",
+    "name_ar": "مقسم دريم دونات سكويشيز 10 حبات",
+    "name_en": "DREAM DONUT DIVIDER SQUISHIES 10 PCS(CTN x 200 PCS)",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_252",
+    "code": "13012065",
+    "name_ar": "مقسم دريم دونات سكويشيز 20 حبة",
+    "name_en": "DREAM DONUT DIVIDER SQUISHIES 20 PCS(CTN x 100 Pcs)",
+    "category_ar": "الصناديق والعلب",
+    "category_en": "Boxes & Containers"
+  },
+  {
+    "id": "prod_253",
+    "code": "15011067",
+    "name_ar": "زي موحد - تي شيرت مدرب مقاس (L)",
+    "name_en": "UNIFORM.TRAINER T-SHIRT - L",
+    "category_ar": "زي الموظفين",
+    "category_en": "Staff Uniforms"
+  },
+  {
+    "id": "prod_254",
+    "code": "15011068",
+    "name_ar": "زي موحد - تي شيرت مدرب مقاس (XL)",
+    "name_en": "UNIFORM.TRAINER T-SHIRT - XL",
+    "category_ar": "زي الموظفين",
+    "category_en": "Staff Uniforms"
+  },
+  {
+    "id": "prod_255",
+    "code": "12041001",
+    "name_ar": "جالون مياه 18.9 لتر",
+    "name_en": "WATER.GALLON WATER",
+    "category_ar": "مياه وعصائر",
+    "category_en": "Water & Juices"
+  },
+  {
+    "id": "prod_256",
+    "code": "15041099",
+    "name_ar": "قبعة زي موحد دانكن",
+    "name_en": "UNIFORM.CAP DD",
+    "category_ar": "زي الموظفين",
+    "category_en": "Staff Uniforms"
+  }
+];
+
+    // Dictionary for Multilingual Translations
+    const TRANSLATIONS = {
+      ar: {
+        appTitle: 'قائمة منتجات المتجر',
+        appSubtitle: 'إدارة وتصفح 256 منتجاً مع الأكواد والفئات بكل سهولة',
+        langBtnText: 'English (LTR)',
+        addBtnText: 'إضافة منتج جديد',
+        exportBtnText: 'تصدير CSV',
+        resetBtnText: 'إعادة ضبط البيانات',
+        statTotal: 'إجمالي المنتجات',
+        statShowing: 'المنتجات المعروضة',
+        statCats: 'إجمالي الفئات',
+        searchPlaceholder: 'ابحث باسم المنتج، الكود، أو الفئة...',
+        allCategories: 'جميع الفئات (All Categories)',
+        counterLabel: 'نتائج البحث:',
+        showingOf: (showing, total) => `عرض ${showing} من إجمالي ${total} منتج`,
+        thSn: '#',
+        thCode: 'الكود (ID)',
+        thName: 'اسم المنتج (Product Name)',
+        thCategory: 'الفئة (Category)',
+        thActions: 'الإجراءات',
+        emptyTitle: 'لم يتم العثور على أي نتائج',
+        emptyDesc: 'جرب البحث بكلمات أخرى أو قم بتغيير الفئة المحددة',
+        pageSizeLabel: 'عدد العناصر بالصفحة:',
+        all: 'الكل (All)',
+        modalAddTitle: 'إضافة منتج جديد',
+        modalEditTitle: 'تعديل بيانات المنتج',
+        lblCode: 'رقم كود المنتج (Product Code) *',
+        lblNameAr: 'اسم المنتج بالعربية (Name AR) *',
+        lblNameEn: 'اسم المنتج بالإنجليزية (Name EN) *',
+        lblCatAr: 'الفئة بالعربية (Category AR) *',
+        lblCatEn: 'الفئة بالإنجليزية (Category EN) *',
+        btnCancel: 'إلغاء',
+        btnSave: 'حفظ البيانات',
+        confirmDelete: 'هل أنت تأكد من رغبتك في حذف هذا المنتج؟',
+        confirmReset: 'هل تريد إعادة ضبط القائمة وإستعادة الـ 256 منتج الأصلية؟',
+        btnEdit: 'تعديل',
+        btnDelete: 'حذف'
+      },
+      en: {
+        appTitle: 'Store Product Catalog',
+        appSubtitle: 'Manage and explore 256 products with codes & categories smoothly',
+        langBtnText: 'العربية (RTL)',
+        addBtnText: 'Add New Product',
+        exportBtnText: 'Export CSV',
+        resetBtnText: 'Reset Dataset',
+        statTotal: 'Total Products',
+        statShowing: 'Displayed Products',
+        statCats: 'Total Categories',
+        searchPlaceholder: 'Search by product name, code, or category...',
+        allCategories: 'All Categories',
+        counterLabel: 'Search Results:',
+        showingOf: (showing, total) => `Showing ${showing} of ${total} products`,
+        thSn: '#',
+        thCode: 'Code (ID)',
+        thName: 'Product Name',
+        thCategory: 'Category',
+        thActions: 'Actions',
+        emptyTitle: 'No products found',
+        emptyDesc: 'Try searching with different terms or select another category',
+        pageSizeLabel: 'Items per page:',
+        all: 'All',
+        modalAddTitle: 'Add New Product',
+        modalEditTitle: 'Edit Product Details',
+        lblCode: 'Product Code (ID) *',
+        lblNameAr: 'Product Name (Arabic) *',
+        lblNameEn: 'Product Name (English) *',
+        lblCatAr: 'Category (Arabic) *',
+        lblCatEn: 'Category (English) *',
+        btnCancel: 'Cancel',
+        btnSave: 'Save Product',
+        confirmDelete: 'Are you sure you want to delete this product?',
+        confirmReset: 'Are you sure you want to reset dataset back to original 256 products?',
+        btnEdit: 'Edit',
+        btnDelete: 'Delete'
+      }
+    };
+
+    // State Management
+    let currentLang = localStorage.getItem('dunkin_app_lang') || 'ar';
+    let currentTheme = localStorage.getItem('dunkin_app_theme') || 'dark';
+    let products = JSON.parse(localStorage.getItem('dunkin_products_256')) || INITIAL_PRODUCTS;
+    let filteredProducts = [...products];
+    let currentPage = 1;
+    let pageSize = 50;
+
+    // Helper: Normalize Arabic string for forgiving search
+    function normalizeStr(str) {
+      if (!str) return '';
+      return String(str)
+        .toLowerCase()
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/ة/g, 'ه')
+        .replace(/ى/g, 'ي')
+        .trim();
+    }
+
+    // DOM Elements
+    const langToggleBtn = document.getElementById('lang-toggle-btn');
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const searchInput = document.getElementById('search-input');
+    const clearSearchBtn = document.getElementById('clear-search-btn');
+    const categoryFilter = document.getElementById('category-filter');
+    const resetBtn = document.getElementById('reset-btn');
+    const addProductBtn = document.getElementById('add-product-btn');
+    const exportBtn = document.getElementById('export-btn');
+    const pageSizeSelect = document.getElementById('page-size-select');
+    
+    const modal = document.getElementById('product-modal');
+    const productForm = document.getElementById('product-form');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const cancelModalBtn = document.getElementById('cancel-modal-btn');
+
+    // Initialize Application
+    function initApp() {
+      applyTheme(currentTheme);
+      applyLanguage(currentLang);
+      populateCategoryDropdown();
+      filterProducts();
+
+      // Setup Listeners
+      langToggleBtn.addEventListener('click', toggleLanguage);
+      themeToggleBtn.addEventListener('click', toggleTheme);
+      searchInput.addEventListener('input', handleSearchInput);
+      clearSearchBtn.addEventListener('click', clearSearch);
+      categoryFilter.addEventListener('change', () => { currentPage = 1; filterProducts(); });
+      pageSizeSelect.addEventListener('change', (e) => { pageSize = parseInt(e.target.value); currentPage = 1; renderTable(); });
+      resetBtn.addEventListener('click', resetDataset);
+      addProductBtn.addEventListener('click', () => openModal('add'));
+      exportBtn.addEventListener('click', exportToCSV);
+
+      closeModalBtn.addEventListener('click', closeModal);
+      cancelModalBtn.addEventListener('click', closeModal);
+      productForm.addEventListener('submit', handleFormSubmit);
+    }
+
+    // Language Switch Engine
+    function toggleLanguage() {
+      currentLang = currentLang === 'ar' ? 'en' : 'ar';
+      localStorage.setItem('dunkin_app_lang', currentLang);
+      applyLanguage(currentLang);
+      populateCategoryDropdown();
+      renderTable();
+    }
+
+    function applyLanguage(lang) {
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+
+      const t = TRANSLATIONS[lang];
+      document.getElementById('ui-title').innerText = t.appTitle;
+      document.getElementById('ui-subtitle').innerText = t.appSubtitle;
+      document.getElementById('lang-btn-text').innerText = t.langBtnText;
+      document.getElementById('add-btn-text').innerText = t.addBtnText;
+      document.getElementById('export-btn-text').innerText = t.exportBtnText;
+      document.getElementById('reset-btn-text').innerText = t.resetBtnText;
+      document.getElementById('stat-total-label').innerText = t.statTotal;
+      document.getElementById('stat-showing-label').innerText = t.statShowing;
+      document.getElementById('stat-cats-label').innerText = t.statCats;
+      
+      searchInput.placeholder = t.searchPlaceholder;
+      document.getElementById('counter-label').innerText = t.counterLabel;
+
+      document.getElementById('th-sn').innerText = t.thSn;
+      document.getElementById('th-code').innerText = t.thCode;
+      document.getElementById('th-name').innerText = t.thName;
+      document.getElementById('th-category').innerText = t.thCategory;
+      document.getElementById('th-actions').innerText = t.thActions;
+
+      document.getElementById('empty-title').innerText = t.emptyTitle;
+      document.getElementById('empty-desc').innerText = t.emptyDesc;
+      document.getElementById('page-size-label').innerText = t.pageSizeLabel;
+
+      // Update Modal Strings
+      document.getElementById('lbl-form-code').innerText = t.lblCode;
+      document.getElementById('lbl-form-name-ar').innerText = t.lblNameAr;
+      document.getElementById('lbl-form-name-en').innerText = t.lblNameEn;
+      document.getElementById('lbl-form-cat-ar').innerText = t.lblCatAr;
+      document.getElementById('lbl-form-cat-en').innerText = t.lblCatEn;
+      document.getElementById('cancel-modal-btn').innerText = t.btnCancel;
+      document.getElementById('save-modal-btn').innerText = t.btnSave;
+    }
+
+    // Theme Switch Engine
+    function toggleTheme() {
+      currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('dunkin_app_theme', currentTheme);
+      applyTheme(currentTheme);
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      themeToggleBtn.innerHTML = theme === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    }
+
+    // Populate Category Dropdown
+    function populateCategoryDropdown() {
+      const selectedVal = categoryFilter.value || 'ALL';
+      const categoriesMap = new Map();
+
+      products.forEach(p => {
+        const catKey = p.category_ar + '___' + p.category_en;
+        const catLabel = currentLang === 'ar' ? p.category_ar : p.category_en;
+        categoriesMap.set(catKey, catLabel);
+      });
+
+      categoryFilter.innerHTML = `<option value="ALL">${TRANSLATIONS[currentLang].allCategories}</option>`;
+
+      Array.from(categoriesMap.entries()).sort((a, b) => a[1].localeCompare(b[1])).forEach(([key, label]) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.innerText = label;
+        if (key === selectedVal) opt.selected = true;
+        categoryFilter.appendChild(opt);
+      });
+
+      document.getElementById('stat-cats-val').innerText = categoriesMap.size;
+    }
+
+    // Search and Filter Logic
+    function handleSearchInput(e) {
+      clearSearchBtn.style.display = e.target.value ? 'block' : 'none';
+      currentPage = 1;
+      filterProducts();
+    }
+
+    function clearSearch() {
+      searchInput.value = '';
+      clearSearchBtn.style.display = 'none';
+      currentPage = 1;
+      filterProducts();
+      searchInput.focus();
+    }
+
+    function filterProducts() {
+      const query = normalizeStr(searchInput.value);
+      const catVal = categoryFilter.value;
+
+      filteredProducts = products.filter(p => {
+        // Category Filter Match
+        if (catVal !== 'ALL') {
+          const catKey = p.category_ar + '___' + p.category_en;
+          if (catKey !== catVal) return false;
+        }
+
+        // Search Term Match
+        if (!query) return true;
+
+        const codeMatch = normalizeStr(p.code).includes(query);
+        const nameArMatch = normalizeStr(p.name_ar).includes(query);
+        const nameEnMatch = normalizeStr(p.name_en).includes(query);
+        const catArMatch = normalizeStr(p.category_ar).includes(query);
+        const catEnMatch = normalizeStr(p.category_en).includes(query);
+
+        return codeMatch || nameArMatch || nameEnMatch || catArMatch || catEnMatch;
+      });
+
+      updateStatsAndCounter();
+      renderTable();
+    }
+
+    // Stats & Counter Update
+    function updateStatsAndCounter() {
+      const t = TRANSLATIONS[currentLang];
+      document.getElementById('stat-total-val').innerText = products.length;
+      document.getElementById('stat-showing-val').innerText = filteredProducts.length;
+      document.getElementById('counter-detail').innerText = t.showingOf(filteredProducts.length, products.length);
+    }
+
+    // Render Table Rows
+    function renderTable() {
+      const tbody = document.getElementById('products-tbody');
+      const emptyState = document.getElementById('empty-state');
+      tbody.innerHTML = '';
+
+      if (filteredProducts.length === 0) {
+        emptyState.style.display = 'block';
+        document.getElementById('pagination-controls').innerHTML = '';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+
+      // Pagination Calculation
+      const totalPages = Math.ceil(filteredProducts.length / pageSize);
+      if (currentPage > totalPages) currentPage = totalPages || 1;
+
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, filteredProducts.length);
+      const pageItems = filteredProducts.slice(startIndex, endIndex);
+
+      const t = TRANSLATIONS[currentLang];
+
+      pageItems.forEach((p, idx) => {
+        const tr = document.createElement('tr');
+        
+        const serialNo = startIndex + idx + 1;
+        const productName = currentLang === 'ar' ? p.name_ar : p.name_en;
+        const categoryName = currentLang === 'ar' ? p.category_ar : p.category_en;
+
+        tr.innerHTML = `
+          <td class="serial-col">${serialNo}</td>
+          <td>
+            <span class="product-code-badge">
+              <i class="fa-solid fa-barcode" style="opacity: 0.6;"></i>
+              ${escapeHtml(p.code)}
+            </span>
+          </td>
+          <!-- CRITICAL BOLD STYLING REQUIREMENT -->
+          <td class="product-name-bold">${escapeHtml(productName)}</td>
+          <td>
+            <span class="category-badge">
+              <i class="fa-solid fa-tag"></i>
+              ${escapeHtml(categoryName)}
+            </span>
+          </td>
+          <td>
+            <div class="actions-cell">
+              <button class="btn btn-secondary btn-sm" onclick="openModal('edit', '${p.id}')" title="${t.btnEdit}">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button class="btn btn-secondary btn-sm" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);" onclick="deleteProduct('${p.id}')" title="${t.btnDelete}">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+      renderPaginationControls(totalPages);
+    }
+
+    // Pagination Controls Render
+    function renderPaginationControls(totalPages) {
+      const container = document.getElementById('pagination-controls');
+      container.innerHTML = '';
+
+      if (totalPages <= 1) return;
+
+      // Prev Button
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'page-num';
+      prevBtn.innerHTML = currentLang === 'ar' ? '<i class="fa-solid fa-chevron-right"></i>' : '<i class="fa-solid fa-chevron-left"></i>';
+      prevBtn.disabled = currentPage === 1;
+      prevBtn.style.opacity = currentPage === 1 ? '0.5' : '1';
+      prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; renderTable(); } };
+      container.appendChild(prevBtn);
+
+      // Page numbers range
+      let startPage = Math.max(1, currentPage - 2);
+      let endPage = Math.min(totalPages, currentPage + 2);
+
+      for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.className = `page-num ${i === currentPage ? 'active' : ''}`;
+        btn.innerText = i;
+        btn.onclick = () => { currentPage = i; renderTable(); };
+        container.appendChild(btn);
+      }
+
+      // Next Button
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'page-num';
+      nextBtn.innerHTML = currentLang === 'ar' ? '<i class="fa-solid fa-chevron-left"></i>' : '<i class="fa-solid fa-chevron-right"></i>';
+      nextBtn.disabled = currentPage === totalPages;
+      nextBtn.style.opacity = currentPage === totalPages ? '0.5' : '1';
+      nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; renderTable(); } };
+      container.appendChild(nextBtn);
+    }
+
+    // CRUD Modal Actions
+    function openModal(mode, productId = null) {
+      const t = TRANSLATIONS[currentLang];
+      modal.classList.add('active');
+
+      if (mode === 'add') {
+        document.getElementById('modal-title').innerText = t.modalAddTitle;
+        document.getElementById('form-product-id').value = '';
+        productForm.reset();
+        document.getElementById('form-code').value = String(Date.now()).slice(-8);
+      } else if (mode === 'edit') {
+        document.getElementById('modal-title').innerText = t.modalEditTitle;
+        const p = products.find(prod => prod.id === productId);
+        if (p) {
+          document.getElementById('form-product-id').value = p.id;
+          document.getElementById('form-code').value = p.code;
+          document.getElementById('form-name-ar').value = p.name_ar;
+          document.getElementById('form-name-en').value = p.name_en;
+          document.getElementById('form-cat-ar').value = p.category_ar;
+          document.getElementById('form-cat-en').value = p.category_en;
+        }
+      }
+    }
+
+    function closeModal() {
+      modal.classList.remove('active');
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const id = document.getElementById('form-product-id').value;
+      const code = document.getElementById('form-code').value.trim();
+      const name_ar = document.getElementById('form-name-ar').value.trim();
+      const name_en = document.getElementById('form-name-en').value.trim();
+      const category_ar = document.getElementById('form-cat-ar').value.trim();
+      const category_en = document.getElementById('form-cat-en').value.trim();
+
+      if (id) {
+        // Edit existing product
+        const idx = products.findIndex(p => p.id === id);
+        if (idx !== -1) {
+          products[idx] = { id, code, name_ar, name_en, category_ar, category_en };
+        }
+      } else {
+        // Add new product
+        const newProduct = {
+          id: 'prod_' + Date.now(),
+          code,
+          name_ar,
+          name_en,
+          category_ar,
+          category_en
+        };
+        products.unshift(newProduct);
+      }
+
+      saveAndRefresh();
+      closeModal();
+    }
+
+    function deleteProduct(id) {
+      const t = TRANSLATIONS[currentLang];
+      if (confirm(t.confirmDelete)) {
+        products = products.filter(p => p.id !== id);
+        saveAndRefresh();
+      }
+    }
+
+    function resetDataset() {
+      const t = TRANSLATIONS[currentLang];
+      if (confirm(t.confirmReset)) {
+        products = [...INITIAL_PRODUCTS];
+        saveAndRefresh();
+      }
+    }
+
+    function saveAndRefresh() {
+      localStorage.setItem('dunkin_products_256', JSON.stringify(products));
+      populateCategoryDropdown();
+      filterProducts();
+    }
+
+    // Export to CSV Functionality
+    function exportToCSV() {
+      const headers = ['#', 'Product Code', 'Product Name (AR)', 'Product Name (EN)', 'Category (AR)', 'Category (EN)'];
+      const rows = filteredProducts.map((p, idx) => [
+        idx + 1,
+        `"${p.code}"`,
+        `"${p.name_ar.replace(/"/g, '""')}"`,
+        `"${p.name_en.replace(/"/g, '""')}"`,
+        `"${p.category_ar.replace(/"/g, '""')}"`,
+        `"${p.category_en.replace(/"/g, '""')}"`
+      ]);
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `products_catalog_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Helper: Security escape HTML
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Boot App
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>

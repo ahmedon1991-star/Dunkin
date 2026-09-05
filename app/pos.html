@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام الكاشير ونقاط البيع - الصفحة الرئيسية</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: 'Cairo', sans-serif; }
+    .bg-gradient-pos { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+  </style>
+</head>
+<body class="bg-gradient-pos text-slate-100 min-h-screen">
+
+  <div class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- Top Navigation Header -->
+    <header class="glass-card rounded-3xl p-4 md:p-6 shadow-2xl mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
+      
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 bg-gradient-to-tr from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg shadow-orange-500/30">
+          <i class="fa-solid fa-cash-register"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl md:text-2xl font-black text-white" id="display-branch-name">جاري تحميل الفرع...</h1>
+            <span class="bg-orange-500/20 text-orange-400 border border-orange-500/30 text-xs font-black px-2.5 py-0.5 rounded-lg" id="display-branch-code">BR-???</span>
+          </div>
+          <p class="text-xs text-slate-400 font-semibold mt-1 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            نظام نقاط البيع الجاهز للعمل للفرع الحالي فقط
+          </p>
+        </div>
+      </div>
+
+      <!-- Active Employee Profile Badge & Logout -->
+      <div class="flex items-center gap-3 bg-slate-900/80 border border-slate-700/80 p-2.5 pr-4 rounded-2xl w-full md:w-auto justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center text-orange-400 text-lg">
+            <i class="fa-solid fa-user-circle"></i>
+          </div>
+          <div>
+            <div class="text-xs font-black text-white" id="display-emp-name">اسم الموظف</div>
+            <div class="text-[11px] text-slate-400 flex items-center gap-1.5">
+              <span id="display-emp-id" class="font-mono font-bold text-slate-300">#EMP-???</span>
+              <span>•</span>
+              <span id="display-emp-role" class="text-orange-400 font-bold uppercase">Cashier</span>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onclick="logout()"
+          title="تسجيل الخروج"
+          class="bg-red-500/15 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 font-bold px-3.5 py-2 rounded-xl transition text-xs flex items-center gap-1.5 mr-2"
+        >
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>تسجيل الخروج</span>
+        </button>
+      </div>
+
+    </header>
+
+    <!-- Main Dashboard Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Branch Active Data Scoping Info Card -->
+      <div class="glass-card rounded-3xl p-6 shadow-xl lg:col-span-1">
+        <h3 class="text-lg font-black text-white mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved text-orange-400"></i>
+          عزل وسريّة بيانات الفرع (Data Scoping)
+        </h3>
+        
+        <div class="space-y-4 text-xs">
+          <div class="bg-slate-900/80 border border-slate-700/60 p-4 rounded-2xl">
+            <div class="text-slate-400 mb-1">الفرع المعتمد للاستعلامات حالياً:</div>
+            <div class="text-lg font-black font-mono text-orange-400" id="scope-branch-code">BR-???</div>
+            <div class="text-[11px] text-slate-400 mt-2">
+              يتم تمرير هذا الرقم تلقائياً في جميع استعلامات قاعدة البيانات لجلب المبيعات والمخزون والجرد الخاضع لهذا الفرع حصرياً.
+            </div>
+          </div>
+
+          <div class="bg-slate-900/80 border border-slate-700/60 p-4 rounded-2xl">
+            <div class="text-slate-400 mb-1">نوع الجلسة الحالية:</div>
+            <div class="font-bold text-white flex items-center gap-2" id="scope-storage-type">
+              <i class="fa-solid fa-hard-drive text-emerald-400"></i> LocalStorage (تذكر الدخول)
+            </div>
+          </div>
+
+          <div class="bg-slate-900/80 border border-slate-700/60 p-4 rounded-2xl">
+            <div class="text-slate-400 mb-1">تاريخ ووقت تسجيل الجلسة:</div>
+            <div class="font-bold text-slate-200" id="scope-login-time">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions & POS Status Card -->
+      <div class="glass-card rounded-3xl p-6 shadow-xl lg:col-span-2">
+        <h3 class="text-lg font-black text-white mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-orange-400"></i>
+          لوحة تحكم كاشير الفرع
+        </h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div class="bg-gradient-to-br from-orange-500/20 to-amber-500/10 border border-orange-500/30 p-5 rounded-2xl">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-orange-300">أوامر الفرع اليوم</span>
+              <i class="fa-solid fa-receipt text-orange-400 text-xl"></i>
+            </div>
+            <div class="text-2xl font-black text-white">48 طلب</div>
+            <div class="text-[11px] text-slate-400 mt-1">إجمالي مبيعات محلي ومحفوظ سحابياً</div>
+          </div>
+
+          <div class="bg-gradient-to-br from-blue-500/20 to-indigo-500/10 border border-blue-500/30 p-5 rounded-2xl">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-blue-300">حالة الاتصال بالفرع</span>
+              <i class="fa-solid fa-wifi text-blue-400 text-xl"></i>
+            </div>
+            <div class="text-2xl font-black text-emerald-400 flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span> متصل أونلاين
+            </div>
+            <div class="text-[11px] text-slate-400 mt-1">ربط مباشر مع قاعدة بيانات Supabase</div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-3 pt-4 border-t border-slate-700/60">
+          <a href="register.html" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-3 rounded-xl border border-slate-700 text-xs flex items-center gap-2 transition">
+            <i class="fa-solid fa-user-plus text-orange-400"></i> إضافة موظف جديد لشاشة الإدارة
+          </a>
+          <a href="index.html" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-3 rounded-xl border border-slate-700 text-xs flex items-center gap-2 transition">
+            <i class="fa-solid fa-boxes-stacked text-amber-400"></i> الذهاب لقائمة المنتجات (256 صنف)
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="session.js"></script>
+  <script>
+    // Boot Check Authentication
+    document.addEventListener("DOMContentLoaded", () => {
+      const session = requireAuth();
+      if (!session) return;
+
+      // Populate UI with Active Session Metadata
+      document.getElementById("display-branch-name").innerText = session.branch_name || "فرع متصل";
+      document.getElementById("display-branch-code").innerText = session.branch_code;
+      document.getElementById("display-emp-name").innerText = session.full_name;
+      document.getElementById("display-emp-id").innerText = `#${session.employee_id}`;
+      document.getElementById("display-emp-role").innerText = session.role || "cashier";
+
+      document.getElementById("scope-branch-code").innerText = getBranchCode();
+      
+      const isLocal = !!localStorage.getItem("pos_active_session");
+      document.getElementById("scope-storage-type").innerHTML = isLocal
+        ? '<i class="fa-solid fa-hard-drive text-emerald-400"></i> LocalStorage (تذكر الدخول)'
+        : '<i class="fa-solid fa-clock text-amber-400"></i> SessionStorage (مؤقت)';
+
+      document.getElementById("scope-login-time").innerText = session.logged_at
+        ? new Date(session.logged_at).toLocaleString("ar-EG")
+        : new Date().toLocaleString("ar-EG");
+    });
+  </script>
+</body>
+</html>

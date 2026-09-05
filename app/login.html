@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول - نظام الكاشير ونقاط البيع</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Cairo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Supabase JS Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body { font-family: 'Cairo', sans-serif; }
+    .bg-gradient-pos { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+  </style>
+</head>
+<body class="bg-gradient-pos text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+  <div class="w-full max-w-md">
+
+    <!-- Header Logo & Branding -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-tr from-orange-600 to-amber-500 rounded-3xl shadow-2xl shadow-orange-600/40 mb-4 text-white text-3xl">
+        <i class="fa-solid fa-cash-register"></i>
+      </div>
+      <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">نظام الكاشير ونقاط البيع</h1>
+      <p class="text-sm text-slate-400 font-semibold mt-1">تسجيل الدخول السريع للموظفين والفروع</p>
+    </div>
+
+    <!-- Login Card -->
+    <div class="glass-card rounded-3xl p-6 md:p-8 shadow-2xl relative">
+      
+      <!-- Error / Success Alert Box -->
+      <div id="alert-box" class="hidden mb-6 p-4 rounded-2xl text-xs md:text-sm font-bold flex items-center gap-3"></div>
+
+      <!-- Login Form (2 Fields Only) -->
+      <form id="login-form" class="space-y-5">
+        
+        <!-- Field 1: Branch Code -->
+        <div>
+          <label for="branch_code" class="block text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-store text-orange-400 ml-1.5"></i> رقم الفرع (Branch Code) *</span>
+            <span class="text-[10px] text-slate-400">مثال: BR-101</span>
+          </label>
+          <div class="relative">
+            <input
+              type="text"
+              id="branch_code"
+              name="branch_code"
+              required
+              autocomplete="off"
+              placeholder="أدخل رقم الفرع (مثال: BR-101)"
+              className="w-full bg-slate-900/80 border border-slate-700/80 rounded-2xl px-4 py-3.5 pr-11 text-white font-bold placeholder:text-slate-500 placeholder:font-normal focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition text-sm uppercase tracking-wider"
+            />
+            <i class="fa-solid fa-barcode absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
+          </div>
+        </div>
+
+        <!-- Field 2: Employee ID -->
+        <div>
+          <label for="employee_id" class="block text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-id-card text-orange-400 ml-1.5"></i> الرقم الوظيفي (Employee ID) *</span>
+            <span class="text-[10px] text-slate-400">مثال: EMP-1001</span>
+          </label>
+          <div class="relative">
+            <input
+              type="text"
+              id="employee_id"
+              name="employee_id"
+              required
+              autocomplete="off"
+              placeholder="أدخل الرقم الوظيفي (مثال: EMP-1001)"
+              className="w-full bg-slate-900/80 border border-slate-700/80 rounded-2xl px-4 py-3.5 pr-11 text-white font-bold placeholder:text-slate-500 placeholder:font-normal focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition text-sm uppercase tracking-wider"
+            />
+            <i class="fa-solid fa-user-gear absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
+          </div>
+        </div>
+
+        <!-- Remember Me Checkbox (Enabled by default) -->
+        <div class="flex items-center justify-between pt-1">
+          <label class="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              id="remember_me"
+              name="remember_me"
+              checked
+              class="w-4 h-4 rounded border-slate-700 bg-slate-900 text-orange-500 focus:ring-orange-500/30 accent-orange-500 cursor-pointer"
+            >
+            <span class="text-xs text-slate-300 font-semibold">تذكر تسجيل الدخول في هذا الجهاز</span>
+          </label>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          id="submit-btn"
+          class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold py-4 px-6 rounded-2xl shadow-xl shadow-orange-500/30 transition-all duration-200 flex items-center justify-center gap-2 text-base active:scale-[0.98]"
+        >
+          <i class="fa-solid fa-right-to-bracket"></i>
+          <span id="btn-text">تسجيل الدخول إلى الفرع</span>
+        </button>
+
+      </form>
+
+      <!-- Navigation Link to Employee Registration -->
+      <div class="mt-6 pt-6 border-t border-slate-700/60 text-center">
+        <p class="text-xs text-slate-400 font-semibold">
+          تريد إضافة موظف جديد لفرعك؟
+          <a href="register.html" class="text-orange-400 font-extrabold hover:underline mr-1 inline-flex items-center gap-1">
+            <i class="fa-solid fa-user-plus text-xs"></i> تسجيل موظف جديد
+          </a>
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Quick Demo Accounts Box -->
+    <div class="mt-6 bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 text-xs text-slate-300">
+      <div class="font-bold text-white mb-2 flex items-center gap-1.5 text-xs">
+        <i class="fa-solid fa-circle-info text-amber-400"></i> حسابات تجريبية للاختبار السريع:
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-[11px]">
+        <button onclick="fillDemo('BR-101', 'EMP-1001')" class="bg-slate-900/80 hover:bg-slate-900 p-2 rounded-xl border border-slate-700/60 text-right transition">
+          <div class="font-bold text-orange-400">فرع العليا (الرياض)</div>
+          <div class="text-slate-400">BR-101 / EMP-1001</div>
+        </button>
+        <button onclick="fillDemo('BR-102', 'EMP-2001')" class="bg-slate-900/80 hover:bg-slate-900 p-2 rounded-xl border border-slate-700/60 text-right transition">
+          <div class="font-bold text-blue-400">فرع الكورنيش (جدة)</div>
+          <div class="text-slate-400">BR-102 / EMP-2001</div>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Include Session Script -->
+  <script src="session.js"></script>
+  <script>
+    // Boot Check for Auto Login
+    document.addEventListener("DOMContentLoaded", () => {
+      checkAutoLogin();
+    });
+
+    const loginForm = document.getElementById("login-form");
+    const alertBox = document.getElementById("alert-box");
+    const submitBtn = document.getElementById("submit-btn");
+    const btnText = document.getElementById("btn-text");
+
+    // Quick Demo Credentials Fill
+    function fillDemo(branch, emp) {
+      document.getElementById("branch_code").value = branch;
+      document.getElementById("employee_id").value = emp;
+    }
+
+    // Show Alert Box
+    function showAlert(msg, type = "error") {
+      alertBox.classList.remove("hidden", "bg-red-500/20", "text-red-300", "border-red-500/30", "bg-emerald-500/20", "text-emerald-300", "border-emerald-500/30");
+      if (type === "error") {
+        alertBox.classList.add("bg-red-500/20", "text-red-300", "border", "border-red-500/30");
+        alertBox.innerHTML = `<i class="fa-solid fa-circle-exclamation text-red-400 text-lg"></i> <span>${msg}</span>`;
+      } else {
+        alertBox.classList.add("bg-emerald-500/20", "text-emerald-300", "border", "border-emerald-500/30");
+        alertBox.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-lg"></i> <span>${msg}</span>`;
+      }
+    }
+
+    // Handle Login Form Submit
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const branchCode = document.getElementById("branch_code").value.trim();
+      const employeeId = document.getElementById("employee_id").value.trim();
+      const rememberMe = document.getElementById("remember_me").checked;
+
+      if (!branchCode || !employeeId) {
+        showAlert("يرجى تعبئة جميع الحقول بشكل صحيح");
+        return;
+      }
+
+      // UI Loading State
+      submitBtn.disabled = true;
+      submitBtn.classList.add("opacity-75");
+      btnText.innerText = "جاري التحقق من الدخول...";
+
+      try {
+        if (!supabaseClient) {
+          throw new Error("تعذر الاتصال بخادم قاعدة البيانات Supabase");
+        }
+
+        // Call Supabase RPC fast_employee_login
+        const { data, error } = await supabaseClient.rpc("fast_employee_login", {
+          p_branch_code: branchCode,
+          p_employee_id: employeeId
+        });
+
+        if (error) {
+          throw new Error(error.message || "حدث خطأ أثناء الدخول");
+        }
+
+        if (!data || !data.success) {
+          showAlert(data ? data.message : "بيانات الدخول غير صحيحة");
+          submitBtn.disabled = false;
+          submitBtn.classList.remove("opacity-75");
+          btnText.innerText = "تسجيل الدخول إلى الفرع";
+          return;
+        }
+
+        // Login Successful
+        showAlert(data.message || "تم تسجيل الدخول بنجاح! جاري التوجيه...", "success");
+        
+        // Save session in localStorage or sessionStorage based on rememberMe
+        saveSession(data.session, rememberMe);
+
+        // Redirect to POS Screen after 800ms
+        setTimeout(() => {
+          window.location.href = "pos.html";
+        }, 800);
+
+      } catch (err) {
+        showAlert(err.message || "فشل الاتصال الخارجي بالنظام");
+        submitBtn.disabled = false;
+        submitBtn.classList.remove("opacity-75");
+        btnText.innerText = "تسجيل الدخول إلى الفرع";
+      }
+    });
+  </script>
+</body>
+</html>
