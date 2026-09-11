@@ -242,6 +242,124 @@ export default function Audit() {
     }).catch(() => notify(lang === "en" ? "Failed to generate PDF" : "تعذر توليد PDF"));
   };
 
+  const shareAudit = async () => {
+    if (filledCount === 0) {
+      notify(lang === "en" ? "No data to share yet!" : "لا توجد بيانات للمشاركة بعد!");
+      return;
+    }
+
+    const deficitCount = rows.filter((r) => r.actualQty !== "" && diffOf(r.actualQty, r.systemQty) !== null && (diffOf(r.actualQty, r.systemQty) as number) < 0).length;
+    const surplusCount = rows.filter((r) => r.actualQty !== "" && diffOf(r.actualQty, r.systemQty) !== null && (diffOf(r.actualQty, r.systemQty) as number) > 0).length;
+    const exactCount = rows.filter((r) => r.actualQty !== "" && diffOf(r.actualQty, r.systemQty) === 0).length;
+
+    const typeStr = auditType === "weekly" ? (lang === "ar" ? "جرد أسبوعي" : "Weekly Audit") : (lang === "ar" ? "جرد شهري" : "Monthly Audit");
+    const dateStr = new Date().toLocaleString(lang === "ar" ? "ar-EG" : "en-US");
+
+    const summaryText = `📋 ${lang === "ar" ? "تقرير جرد دانكن" : "Dunkin Inventory Audit Report"}
+🏬 ${lang === "ar" ? "الفرع" : "Branch"}: [${selectedBranch}] ${getBranchName(selectedBranch)}
+🗓️ ${lang === "ar" ? "النوع" : "Type"}: ${typeStr}
+👤 ${lang === "ar" ? "المحرر" : "Auditor"}: ${getEmployeeName(auditorName)}
+📅 ${lang === "ar" ? "التاريخ" : "Date"}: ${dateStr}
+📦 ${lang === "ar" ? "إجمالي الأصناف المسجلة" : "Counted Items"}: ${filledCount} / ${rows.length}
+⚠️ ${lang === "ar" ? "أصناف بعجز" : "Deficit Items"}: ${deficitCount}
+📈 ${lang === "ar" ? "أصناف بزيادة" : "Surplus Items"}: ${surplusCount}
+✅ ${lang === "ar" ? "أصناف مطابقة" : "Exact Match"}: ${exactCount}
+${generalNotes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${generalNotes}` : ""}
+`.trim();
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Dunkin Audit - ${getBranchName(selectedBranch)}`,
+          text: summaryText,
+        });
+        return;
+      } catch (e) {}
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(summaryText);
+      notify(lang === "ar" ? "تم نسخ ملخص الجرد للحافظة للمشاركة!" : "Audit summary copied to clipboard!");
+    } else {
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(summaryText)}`;
+      window.open(waUrl, "_blank");
+    }
+  };
+
+  const exportHistoryPdf = async (a: any) => {
+    try {
+      const data = await utils.client.audit.get.query({ id: a.id });
+      if (!data || !data.items) {
+        notify(lang === "en" ? "No items found for this audit" : "لا توجد بنود لهذا الجرد");
+        return;
+      }
+      await generateAuditPdf({
+        lang: lang,
+        auditType: a.auditType,
+        auditorName: a.auditorName || "—",
+        createdAt: a.createdAt,
+        notes: a.notes || null,
+        items: data.items.map((r: any) => ({
+          productCode: r.productCode,
+          productName: r.productName,
+          category: r.category,
+          unit: r.unit,
+          systemQty: r.systemQty,
+          actualQty: r.actualQty,
+          difference: r.actualQty != null && r.systemQty != null ? r.actualQty - r.systemQty : null,
+          itemNotes: r.itemNotes || null,
+        })),
+      });
+    } catch {
+      notify(lang === "en" ? "Failed to generate PDF" : "تعذر استخراج ملف PDF");
+    }
+  };
+
+  const shareHistoryAudit = async (a: any) => {
+    try {
+      const data = await utils.client.audit.get.query({ id: a.id });
+      const items = data?.items ?? [];
+      const deficitCount = items.filter((r: any) => (r.actualQty ?? 0) < (r.systemQty ?? 0)).length;
+      const surplusCount = items.filter((r: any) => (r.actualQty ?? 0) > (r.systemQty ?? 0)).length;
+      const exactCount = items.filter((r: any) => r.actualQty === r.systemQty && r.actualQty != null).length;
+
+      const typeStr = a.auditType === "weekly" ? (lang === "ar" ? "جرد أسبوعي" : "Weekly Audit") : (lang === "ar" ? "جرد شهري" : "Monthly Audit");
+      const dateStr = new Date(a.createdAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-US");
+
+      const summaryText = `📋 ${lang === "ar" ? "تقرير جرد دانكن" : "Dunkin Inventory Audit Report"}
+🏬 ${lang === "ar" ? "الفرع" : "Branch"}: [${selectedBranch}] ${getBranchName(selectedBranch)}
+🗓️ ${lang === "ar" ? "النوع" : "Type"}: ${typeStr}
+👤 ${lang === "ar" ? "المحرر" : "Auditor"}: ${getEmployeeName(a.auditorName)}
+📅 ${lang === "ar" ? "التاريخ" : "Date"}: ${dateStr}
+📦 ${lang === "ar" ? "إجمالي الأصناف" : "Total Items"}: ${items.length}
+⚠️ ${lang === "ar" ? "أصناف بعجز" : "Deficit Items"}: ${deficitCount}
+📈 ${lang === "ar" ? "أصناف بزيادة" : "Surplus Items"}: ${surplusCount}
+✅ ${lang === "ar" ? "أصناف مطابقة" : "Exact Match"}: ${exactCount}
+${a.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${a.notes}` : ""}
+`.trim();
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `Dunkin Audit - ${getBranchName(selectedBranch)}`,
+            text: summaryText,
+          });
+          return;
+        } catch (e) {}
+      }
+
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(summaryText);
+        notify(lang === "ar" ? "تم نسخ ملخص الجرد للحافظة للمشاركة!" : "Audit summary copied to clipboard!");
+      } else {
+        const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(summaryText)}`;
+        window.open(waUrl, "_blank");
+      }
+    } catch {
+      notify(lang === "en" ? "Failed to share audit" : "تعذر تجهيز الجرد للمشاركة");
+    }
+  };
+
   // ─── الشاشة الجانبية: سجل الجرود السابقة ────────────────────────────────
   const [showHistory, setShowHistory] = useState(false);
 
@@ -311,6 +429,14 @@ export default function Audit() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   {lang === "en" ? "Export PDF" : "تصدير PDF"}
+                </button>
+                <button
+                  id="btn-share-audit"
+                  onClick={shareAudit}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors text-sm font-bold"
+                >
+                  <i className="ph-bold ph-share-network"></i>
+                  {lang === "en" ? "Share" : "مشاركة"}
                 </button>
                 <button
                   id="btn-save-draft"
@@ -745,17 +871,33 @@ export default function Audit() {
                         })}
                       </p>
                     </div>
-                    <button
-                      onClick={() => {
-                        if (confirm("هل أنت متأكد من حذف هذا الجرد؟")) {
-                          deleteMut.mutate({ id: a.id });
-                        }
-                      }}
-                      className="text-red-400 hover:text-red-600 transition-colors text-sm"
-                      title="حذف"
-                    >
-                      🗑
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => exportHistoryPdf(a)}
+                        className="w-8 h-8 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 flex items-center justify-center transition"
+                        title={lang === "en" ? "Export PDF" : "تصدير ملف PDF"}
+                      >
+                        <i className="ph-bold ph-file-pdf"></i>
+                      </button>
+                      <button
+                        onClick={() => shareHistoryAudit(a)}
+                        className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center transition"
+                        title={lang === "en" ? "Share" : "مشاركة الجرد"}
+                      >
+                        <i className="ph-bold ph-share-network"></i>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm("هل أنت متأكد من حذف هذا الجرد؟")) {
+                            deleteMut.mutate({ id: a.id });
+                          }
+                        }}
+                        className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 flex items-center justify-center transition"
+                        title={lang === "en" ? "Delete" : "حذف"}
+                      >
+                        <i className="ph-bold ph-trash"></i>
+                      </button>
+                    </div>
                   </div>
                   {a.notes && (
                     <p className="text-xs text-slate-500 mt-2 bg-white rounded-lg px-2 py-1 border border-slate-100">

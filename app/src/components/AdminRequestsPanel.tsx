@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useAuth, type EmployeeRequest, type EmployeeRecord, type BranchRecord, type AdminSubmission } from "@/providers/AuthContext";
 import { useLanguage } from "@/providers/LanguageContext";
 import { trpc } from "@/providers/trpc";
+import { generateAuditPdf } from "@/lib/auditPdfGenerator";
 
 export interface AdminRequestsPanelProps {
   forcedTab?: "requests" | "submissions" | "employees" | "branches";
@@ -933,7 +934,11 @@ function BranchDetailsModal({
 }) {
   const { lang, getProductName, getUnitName, getBranchName, getEmployeeName, t } = useLanguage();
   const { setSelectedBranch } = useAuth();
+  const navigate = useNavigate();
+  const utils = trpc.useUtils();
+
   const [tab, setTab] = useState<"employees" | "audits" | "orders">("employees");
+  const [inspectingAuditId, setInspectingAuditId] = useState<number | null>(null);
 
   const auditsQuery = trpc.audit.list.useQuery();
   const snapshotsQuery = trpc.inventory.snapshots.useQuery();
@@ -943,6 +948,82 @@ function BranchDetailsModal({
   const audits = auditsQuery.data ?? [];
   const snapshots = snapshotsQuery.data ?? [];
   const orderedItems = (productsQuery.data ?? []).filter((p) => p.orderQty != null && p.orderQty > 0);
+
+  const handleExportPdf = async (audit: any) => {
+    try {
+      const data = await utils.client.audit.get.query({ id: audit.id });
+      if (!data || !data.items) {
+        alert(lang === "en" ? "No audit items found" : "لا توجد بنود لهذا الجرد");
+        return;
+      }
+      await generateAuditPdf({
+        lang: lang as "ar" | "en",
+        auditType: audit.auditType,
+        auditorName: audit.auditorName || "—",
+        createdAt: audit.createdAt,
+        notes: audit.notes || null,
+        items: data.items.map((r: any) => ({
+          productCode: r.productCode,
+          productName: r.productName,
+          category: r.category,
+          unit: r.unit,
+          systemQty: r.systemQty,
+          actualQty: r.actualQty,
+          difference: r.actualQty != null && r.systemQty != null ? r.actualQty - r.systemQty : null,
+          itemNotes: r.itemNotes || null,
+        })),
+      });
+    } catch (err) {
+      alert(lang === "en" ? "Failed to generate PDF" : "تعذر استخراج ملف PDF");
+    }
+  };
+
+  const handleShareAudit = async (audit: any) => {
+    try {
+      const data = await utils.client.audit.get.query({ id: audit.id });
+      const items = data?.items ?? [];
+      const deficitCount = items.filter((r: any) => (r.actualQty ?? 0) < (r.systemQty ?? 0)).length;
+      const surplusCount = items.filter((r: any) => (r.actualQty ?? 0) > (r.systemQty ?? 0)).length;
+      const exactCount = items.filter((r: any) => r.actualQty === r.systemQty && r.actualQty != null).length;
+
+      const typeStr = audit.auditType === "weekly" ? (lang === "ar" ? "جرد أسبوعي" : "Weekly Audit") : (lang === "ar" ? "جرد شهري" : "Monthly Audit");
+      const dateStr = new Date(audit.createdAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-US");
+
+      const summaryText = `📋 ${lang === "ar" ? "تقرير جرد دانكن" : "Dunkin Inventory Audit Report"}
+🏬 ${lang === "ar" ? "الفرع" : "Branch"}: ${getBranchName(branch.branch_code, branch.branch_name)} (#${branch.branch_code})
+🗓️ ${lang === "ar" ? "النوع" : "Type"}: ${typeStr}
+👤 ${lang === "ar" ? "المحرر" : "Auditor"}: ${getEmployeeName(audit.auditorName)}
+📅 ${lang === "ar" ? "التاريخ" : "Date"}: ${dateStr}
+📦 ${lang === "ar" ? "إجمالي الأصناف" : "Total Items"}: ${items.length}
+⚠️ ${lang === "ar" ? "أصناف بعجز" : "Deficit Items"}: ${deficitCount}
+📈 ${lang === "ar" ? "أصناف بزيادة" : "Surplus Items"}: ${surplusCount}
+✅ ${lang === "ar" ? "أصناف مطابقة" : "Exact Match"}: ${exactCount}
+${audit.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${audit.notes}` : ""}
+`.trim();
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `Dunkin Audit - ${branch.branch_name}`,
+            text: summaryText,
+          });
+          return;
+        } catch (e) {
+          // Fallback
+        }
+      }
+
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(summaryText);
+        alert(lang === "ar" ? "تم نسخ تقرير الجرد للحافظة بنجاح للمشاركة!" : "Audit report copied to clipboard for sharing!");
+      } else {
+        const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(summaryText)}`;
+        window.open(waUrl, "_blank");
+      }
+    } catch (err) {
+      alert(lang === "en" ? "Failed to share audit" : "تعذر تجهيز تقرير الجرد للمشاركة");
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-200" dir={lang === "ar" ? "rtl" : "ltr"}>
@@ -1113,30 +1194,61 @@ function BranchDetailsModal({
               ) : (
                 <>
                   {audits.map((audit) => (
-                    <div key={audit.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
-                            audit.auditType === "weekly" ? "bg-emerald-100 text-emerald-800" : "bg-blue-100 text-blue-800"
-                          }`}>
-                            {audit.auditType === "weekly" ? (lang === "en" ? "Weekly Audit" : "جرد أسبوعي") : (lang === "en" ? "Monthly Audit" : "جرد شهري")}
-                          </span>
-                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
-                            audit.status === "completed" ? "bg-emerald-600 text-white" : "bg-amber-100 text-amber-900 border border-amber-300"
-                          }`}>
-                            {audit.status === "completed" ? (lang === "en" ? "Completed" : "مكتمل") : (lang === "en" ? "Draft" : "مسودة")}
-                          </span>
+                    <div key={audit.id} className="bg-slate-50 hover:bg-white border border-slate-200 hover:border-violet-300 rounded-2xl p-4 transition shadow-sm space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            <span className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
+                              audit.auditType === "weekly" ? "bg-emerald-100 text-emerald-800" : "bg-blue-100 text-blue-800"
+                            }`}>
+                              {audit.auditType === "weekly" ? (lang === "en" ? "Weekly Audit" : "جرد أسبوعي") : (lang === "en" ? "Monthly Audit" : "جرد شهري")}
+                            </span>
+                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
+                              audit.status === "completed" ? "bg-emerald-600 text-white" : "bg-amber-100 text-amber-900 border border-amber-300"
+                            }`}>
+                              {audit.status === "completed" ? (lang === "en" ? "Completed" : "مكتمل") : (lang === "en" ? "Draft" : "مسودة")}
+                            </span>
+                          </div>
+                          <h5 className="font-extrabold text-sm text-slate-800">
+                            {lang === "en" ? "Auditor:" : "المحـرر:"} {getEmployeeName(audit.auditorName)}
+                          </h5>
+                          <p className="text-xs text-slate-400 mt-0.5 font-mono">
+                            {new Date(audit.createdAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}
+                          </p>
                         </div>
-                        <h5 className="font-extrabold text-sm text-slate-800">
-                          {lang === "en" ? "Auditor:" : "المحـرر:"} {getEmployeeName(audit.auditorName)}
-                        </h5>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {new Date(audit.createdAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}
-                        </p>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            onClick={() => setInspectingAuditId(audit.id)}
+                            className="bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm"
+                            title={lang === "en" ? "Inspect Audit Details" : "الاطلاع على تفاصيل الجرد"}
+                          >
+                            <i className="ph-bold ph-eye"></i>
+                            {lang === "en" ? "View Audit" : "عرض الجرد"}
+                          </button>
+                          <button
+                            onClick={() => handleExportPdf(audit)}
+                            className="bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1"
+                            title={lang === "en" ? "Save as PDF" : "حفظ ملف الجرد PDF"}
+                          >
+                            <i className="ph-bold ph-file-pdf"></i>
+                            {lang === "en" ? "Save PDF" : "حفظ PDF"}
+                          </button>
+                          <button
+                            onClick={() => handleShareAudit(audit)}
+                            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-1.5 rounded-xl transition flex items-center gap-1"
+                            title={lang === "en" ? "Share Audit" : "مشاركة تقرير الجرد"}
+                          >
+                            <i className="ph-bold ph-share-network"></i>
+                            {lang === "en" ? "Share" : "مشاركة"}
+                          </button>
+                        </div>
                       </div>
+
                       {audit.notes && (
-                        <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-xs text-slate-600 max-w-xs font-medium">
-                          {audit.notes}
+                        <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-xs text-slate-600 font-medium">
+                          <span className="font-bold text-slate-700">{lang === "en" ? "Notes:" : "ملاحظات:"}</span> {audit.notes}
                         </div>
                       )}
                     </div>
@@ -1199,6 +1311,14 @@ function BranchDetailsModal({
           </button>
         </div>
       </div>
+
+      {inspectingAuditId && (
+        <InspectAuditModal
+          auditId={inspectingAuditId}
+          branch={branch}
+          onClose={() => setInspectingAuditId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1224,6 +1344,70 @@ function SubmissionDetailsModal({
       text += `${i + 1}. [${item.code}] ${item.nameAr}\n   👈 الكمية: ${item.qty ?? item.actualQty ?? 0} (${item.unit || "عدد"})\n\n`;
     });
     navigator.clipboard.writeText(text);
+  };
+
+  const handleExportPdf = async () => {
+    if (!submission.details.items || submission.details.items.length === 0) return;
+    try {
+      await generateAuditPdf({
+        lang: lang as "ar" | "en",
+        auditType: submission.type === "weekly_audit" ? "weekly" : "monthly",
+        auditorName: submission.employee_name || "—",
+        createdAt: submission.created_at,
+        notes: null,
+        items: submission.details.items.map((r: any) => ({
+          productCode: r.code,
+          productName: r.nameAr || r.nameEn || "",
+          category: "",
+          unit: r.unit || "عدد",
+          systemQty: r.systemQty ?? null,
+          actualQty: r.actualQty ?? null,
+          difference: r.diff ?? (r.actualQty != null && r.systemQty != null ? r.actualQty - r.systemQty : null),
+          itemNotes: null,
+        })),
+      });
+    } catch (err) {
+      alert(lang === "en" ? "Failed to generate PDF" : "تعذر استخراج ملف PDF");
+    }
+  };
+
+  const handleShare = async () => {
+    const items = submission.details.items ?? [];
+    const deficitCount = items.filter((r: any) => (r.actualQty ?? 0) < (r.systemQty ?? 0)).length;
+    const surplusCount = items.filter((r: any) => (r.actualQty ?? 0) > (r.systemQty ?? 0)).length;
+    const exactCount = items.filter((r: any) => r.actualQty === r.systemQty && r.actualQty != null).length;
+
+    const typeStr = submission.type === "weekly_audit" ? (lang === "ar" ? "جرد أسبوعي" : "Weekly Audit") : (lang === "ar" ? "جرد شهري" : "Monthly Audit");
+    const dateStr = new Date(submission.created_at).toLocaleString(lang === "ar" ? "ar-EG" : "en-US");
+
+    const summaryText = `📋 ${lang === "ar" ? "تقرير جرد دانكن" : "Dunkin Inventory Audit Report"}
+🏬 ${lang === "ar" ? "الفرع" : "Branch"}: [${submission.branch_code}] ${getBranchName(submission.branch_code, submission.branch_name)}
+🗓️ ${lang === "ar" ? "النوع" : "Type"}: ${typeStr}
+👤 ${lang === "ar" ? "المحرر" : "Auditor"}: ${getEmployeeName(submission.employee_name)} (#${submission.employee_id})
+📅 ${lang === "ar" ? "التاريخ" : "Date"}: ${dateStr}
+📦 ${lang === "ar" ? "إجمالي الأصناف" : "Total Items"}: ${items.length}
+⚠️ ${lang === "ar" ? "أصناف بعجز" : "Deficit Items"}: ${deficitCount}
+📈 ${lang === "ar" ? "أصناف بزيادة" : "Surplus Items"}: ${surplusCount}
+✅ ${lang === "ar" ? "أصناف مطابقة" : "Exact Match"}: ${exactCount}
+`.trim();
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Dunkin Audit - ${submission.branch_name}`,
+          text: summaryText,
+        });
+        return;
+      } catch (e) {}
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(summaryText);
+      alert(lang === "ar" ? "تم نسخ تقرير الجرد للحافظة بنجاح للمشاركة!" : "Audit report copied to clipboard!");
+    } else {
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(summaryText)}`;
+      window.open(waUrl, "_blank");
+    }
   };
 
   return (
@@ -1352,7 +1536,24 @@ function SubmissionDetailsModal({
               {lang === "en" ? "Copy Order Text" : "نسخ نص الطلب"}
             </button>
           ) : (
-            <div />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportPdf}
+                className="bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 font-bold px-3.5 py-2 rounded-xl transition text-xs flex items-center gap-1.5 shadow-sm"
+                title={lang === "en" ? "Save PDF" : "حفظ ملف الجرد PDF"}
+              >
+                <i className="ph-bold ph-file-pdf"></i>
+                {lang === "en" ? "Save PDF" : "حفظ PDF"}
+              </button>
+              <button
+                onClick={handleShare}
+                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold px-3.5 py-2 rounded-xl transition text-xs flex items-center gap-1.5 shadow-sm"
+                title={lang === "en" ? "Share" : "مشاركة تقرير الجرد"}
+              >
+                <i className="ph-bold ph-share-network"></i>
+                {lang === "en" ? "Share" : "مشاركة"}
+              </button>
+            </div>
           )}
 
           <div className="flex items-center gap-2">
@@ -1380,4 +1581,383 @@ function SubmissionDetailsModal({
     </div>
   );
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// InspectAuditModal: شاشة تفاصيل الجرد الكاملة مع تصدير PDF والمشاركة
+// ══════════════════════════════════════════════════════════════════════════════
+function InspectAuditModal({
+  auditId,
+  branch,
+  onClose,
+}: {
+  auditId: number;
+  branch: BranchRecord;
+  onClose: () => void;
+}) {
+  const { lang, t, getBranchName, getEmployeeName } = useLanguage();
+  const { setSelectedBranch } = useAuth();
+  const navigate = useNavigate();
+
+  const auditQuery = trpc.audit.get.useQuery({ id: auditId });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "deficit" | "surplus" | "exact">("all");
+
+  const audit = auditQuery.data?.audit;
+  const items = auditQuery.data?.items ?? [];
+
+  const deficitCount = items.filter((r: any) => (r.actualQty ?? 0) < (r.systemQty ?? 0)).length;
+  const surplusCount = items.filter((r: any) => (r.actualQty ?? 0) > (r.systemQty ?? 0)).length;
+  const exactCount = items.filter((r: any) => r.actualQty === r.systemQty && r.actualQty != null).length;
+
+  const filteredItems = items.filter((item: any) => {
+    const s = searchTerm.trim().toLowerCase();
+    const matchesSearch =
+      !s ||
+      item.productName.toLowerCase().includes(s) ||
+      item.productCode.toLowerCase().includes(s);
+    if (!matchesSearch) return false;
+
+    if (filterType === "deficit") return (item.actualQty ?? 0) < (item.systemQty ?? 0);
+    if (filterType === "surplus") return (item.actualQty ?? 0) > (item.systemQty ?? 0);
+    if (filterType === "exact") return item.actualQty === item.systemQty && item.actualQty != null;
+    return true;
+  });
+
+  const handleExportPdf = async () => {
+    if (!audit || items.length === 0) return;
+    try {
+      await generateAuditPdf({
+        lang: lang as "ar" | "en",
+        auditType: audit.auditType as "weekly" | "monthly",
+        auditorName: audit.auditorName || "—",
+        createdAt: audit.createdAt,
+        notes: audit.notes || null,
+        items: items.map((r: any) => ({
+          productCode: r.productCode,
+          productName: r.productName,
+          category: r.category,
+          unit: r.unit,
+          systemQty: r.systemQty,
+          actualQty: r.actualQty,
+          difference: r.actualQty != null && r.systemQty != null ? r.actualQty - r.systemQty : null,
+          itemNotes: r.itemNotes || null,
+        })),
+      });
+    } catch (e) {
+      alert(lang === "en" ? "Failed to generate PDF" : "تعذر استخراج ملف PDF");
+    }
+  };
+
+  const handleShare = async () => {
+    if (!audit) return;
+    const typeStr = audit.auditType === "weekly" ? (lang === "ar" ? "جرد أسبوعي" : "Weekly Audit") : (lang === "ar" ? "جرد شهري" : "Monthly Audit");
+    const dateStr = new Date(audit.createdAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-US");
+
+    const summaryText = `📋 ${lang === "ar" ? "تقرير جرد دانكن" : "Dunkin Inventory Audit Report"}
+🏬 ${lang === "ar" ? "الفرع" : "Branch"}: ${getBranchName(branch.branch_code, branch.branch_name)} (#${branch.branch_code})
+🗓️ ${lang === "ar" ? "النوع" : "Type"}: ${typeStr} (${audit.status === "completed" ? (lang === "ar" ? "معتمد" : "Finalized") : (lang === "ar" ? "مسودة" : "Draft")})
+👤 ${lang === "ar" ? "المحرر" : "Auditor"}: ${getEmployeeName(audit.auditorName)}
+📅 ${lang === "ar" ? "التاريخ" : "Date"}: ${dateStr}
+📦 ${lang === "ar" ? "إجمالي الأصناف" : "Total Items"}: ${items.length}
+⚠️ ${lang === "ar" ? "أصناف بعجز" : "Deficits"}: ${deficitCount}
+📈 ${lang === "ar" ? "أصناف بزيادة" : "Surplus"}: ${surplusCount}
+✅ ${lang === "ar" ? "أصناف مطابقة" : "Exact Match"}: ${exactCount}
+${audit.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${audit.notes}` : ""}
+`.trim();
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Dunkin Audit - ${branch.branch_name}`,
+          text: summaryText,
+        });
+        return;
+      } catch (e) {}
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(summaryText);
+      alert(lang === "ar" ? "تم نسخ تقرير الجرد للحافظة بنجاح للمشاركة!" : "Audit report copied to clipboard!");
+    } else {
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(summaryText)}`;
+      window.open(waUrl, "_blank");
+    }
+  };
+
+  const handleEnterBranchAudit = () => {
+    setSelectedBranch(branch.branch_code);
+    onClose();
+    navigate("/audit");
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200" dir={lang === "ar" ? "rtl" : "ltr"}>
+      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        
+        {/* Header */}
+        <div className="bg-slate-900 text-white p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-violet-600 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-violet-600/30 shrink-0">
+              <i className="ph-bold ph-clipboard-text"></i>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono text-xs bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded font-bold">
+                  #{branch.branch_code}
+                </span>
+                <span className="font-extrabold text-sm text-slate-200">
+                  {getBranchName(branch.branch_code, branch.branch_name)}
+                </span>
+                {audit && (
+                  <>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                      audit.auditType === "weekly" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                    }`}>
+                      {audit.auditType === "weekly" ? (lang === "en" ? "Weekly Audit" : "جرد أسبوعي") : (lang === "en" ? "Monthly Audit" : "جرد شهري")}
+                    </span>
+                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                      audit.status === "completed" ? "bg-emerald-600 text-white" : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                    }`}>
+                      {audit.status === "completed" ? (lang === "en" ? "Completed" : "معتمد") : (lang === "en" ? "Draft" : "مسودة")}
+                    </span>
+                  </>
+                )}
+              </div>
+              {audit && (
+                <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+                  <span>{lang === "en" ? "Auditor:" : "المحـرر:"} <strong className="text-slate-200">{getEmployeeName(audit.auditorName)}</strong></span>
+                  <span>•</span>
+                  <span className="font-mono">{new Date(audit.createdAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button
+              onClick={handleExportPdf}
+              className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow-md"
+              title={lang === "en" ? "Save PDF" : "حفظ ملف الجرد PDF"}
+            >
+              <i className="ph-bold ph-file-pdf"></i>
+              {lang === "en" ? "Save PDF" : "حفظ PDF"}
+            </button>
+            <button
+              onClick={handleShare}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow-md"
+              title={lang === "en" ? "Share" : "مشاركة تقرير الجرد"}
+            >
+              <i className="ph-bold ph-share-network"></i>
+              {lang === "en" ? "Share" : "مشاركة"}
+            </button>
+            <button
+              onClick={handleEnterBranchAudit}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 border border-slate-700"
+              title={lang === "en" ? "Enter Branch Audit Page" : "دخول صفحة جرد الفرع"}
+            >
+              <i className="ph-bold ph-sign-in"></i>
+              {lang === "en" ? "Open in Branch" : "شاشة الفرع"}
+            </button>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition"
+            >
+              <i className="ph-bold ph-x text-lg"></i>
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
+          {auditQuery.isLoading ? (
+            <div className="py-20 text-center text-slate-400 font-bold">
+              <i className="ph-bold ph-spinner animate-spin text-3xl mb-2"></i>
+              <p>{lang === "en" ? "Loading audit details..." : "جاري تحميل تفاصيل الجرد..."}</p>
+            </div>
+          ) : !audit ? (
+            <div className="py-16 text-center text-slate-400 font-bold">
+              <p>{lang === "en" ? "Audit details not found" : "تعذر العثور على بيانات الجرد"}</p>
+            </div>
+          ) : (
+            <>
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center">
+                  <span className="text-xs text-slate-500 font-bold block mb-1">
+                    {lang === "en" ? "Total Items" : "إجمالي الأصناف"}
+                  </span>
+                  <span className="text-xl font-black font-mono text-slate-900">{items.length}</span>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-center">
+                  <span className="text-xs text-emerald-700 font-bold block mb-1">
+                    {lang === "en" ? "Exact Matches" : "مطابقة تماماً ✅"}
+                  </span>
+                  <span className="text-xl font-black font-mono text-emerald-700">{exactCount}</span>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-3 text-center">
+                  <span className="text-xs text-red-700 font-bold block mb-1">
+                    {lang === "en" ? "Deficits" : "أصناف بها عجز ⚠️"}
+                  </span>
+                  <span className="text-xl font-black font-mono text-red-700">{deficitCount}</span>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center">
+                  <span className="text-xs text-amber-800 font-bold block mb-1">
+                    {lang === "en" ? "Surplus" : "أصناف بها زيادة 📈"}
+                  </span>
+                  <span className="text-xl font-black font-mono text-amber-800">{surplusCount}</span>
+                </div>
+              </div>
+
+              {/* Search & Filters */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+                <div className="relative flex-1">
+                  <i className="ph-bold ph-magnifying-glass absolute top-1/2 -translate-y-1/2 right-3 text-slate-400"></i>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder={lang === "en" ? "Search item name or code..." : "ابحث برقم الصنف أو الاسم..."}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold focus:outline-none focus:border-violet-500 transition"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-bold">
+                  <button
+                    onClick={() => setFilterType("all")}
+                    className={`px-3 py-1.5 rounded-xl transition ${
+                      filterType === "all" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {lang === "en" ? "All" : "الكل"} ({items.length})
+                  </button>
+                  <button
+                    onClick={() => setFilterType("exact")}
+                    className={`px-3 py-1.5 rounded-xl transition ${
+                      filterType === "exact" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    }`}
+                  >
+                    {lang === "en" ? "Exact" : "مطابق"} ({exactCount})
+                  </button>
+                  <button
+                    onClick={() => setFilterType("deficit")}
+                    className={`px-3 py-1.5 rounded-xl transition ${
+                      filterType === "deficit" ? "bg-red-600 text-white" : "bg-red-50 text-red-700 hover:bg-red-100"
+                    }`}
+                  >
+                    {lang === "en" ? "Deficits" : "عجز"} ({deficitCount})
+                  </button>
+                  <button
+                    onClick={() => setFilterType("surplus")}
+                    className={`px-3 py-1.5 rounded-xl transition ${
+                      filterType === "surplus" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-800 hover:bg-amber-100"
+                    }`}
+                  >
+                    {lang === "en" ? "Surplus" : "زيادة"} ({surplusCount})
+                  </button>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-right" dir={lang === "ar" ? "rtl" : "ltr"}>
+                    <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">#</th>
+                        <th className="p-3">{lang === "en" ? "Code" : "كود"}</th>
+                        <th className="p-3">{lang === "en" ? "Product Name" : "اسم الصنف"}</th>
+                        <th className="p-3">{lang === "en" ? "Category" : "القسم"}</th>
+                        <th className="p-3">{lang === "en" ? "Unit" : "الوحدة"}</th>
+                        <th className="p-3">{lang === "en" ? "System Qty" : "رصيد النظام"}</th>
+                        <th className="p-3">{lang === "en" ? "Actual Qty" : "الرصيد الفعلي"}</th>
+                        <th className="p-3">{lang === "en" ? "Diff" : "الفارق"}</th>
+                        <th className="p-3">{lang === "en" ? "Notes" : "الملاحظات"}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 font-bold text-slate-800">
+                      {filteredItems.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="p-8 text-center text-slate-400">
+                            {lang === "en" ? "No items matching filter" : "لا توجد أصناف تطابق هذا البحث أو الفلتر"}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredItems.map((item: any, idx: number) => {
+                          const diff = item.actualQty != null && item.systemQty != null ? item.actualQty - item.systemQty : null;
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50 transition">
+                              <td className="p-3 text-slate-400 font-mono">{idx + 1}</td>
+                              <td className="p-3 font-mono text-blue-600 font-black">#{item.productCode}</td>
+                              <td className="p-3 font-black text-slate-900">{item.productName}</td>
+                              <td className="p-3 text-slate-500">{item.category || "—"}</td>
+                              <td className="p-3 text-slate-600">{item.unit || "عدد"}</td>
+                              <td className="p-3 font-mono text-slate-600">{item.systemQty ?? "—"}</td>
+                              <td className="p-3 font-mono text-slate-950 font-black">{item.actualQty ?? "—"}</td>
+                              <td className="p-3 font-mono">
+                                {diff == null ? (
+                                  <span className="text-slate-400">—</span>
+                                ) : diff === 0 ? (
+                                  <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-black">0</span>
+                                ) : diff > 0 ? (
+                                  <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black">+{diff}</span>
+                                ) : (
+                                  <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded font-black">{diff}</span>
+                                )}
+                              </td>
+                              <td className="p-3 text-slate-500 font-medium">{item.itemNotes || "—"}</td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* General Audit Notes */}
+              {audit.notes && (
+                <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 text-xs">
+                  <span className="font-extrabold text-amber-900 block mb-1">
+                    📝 {lang === "en" ? "Audit General Notes:" : "ملاحظات الجرد العامة:"}
+                  </span>
+                  <p className="text-amber-800 font-medium">{audit.notes}</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportPdf}
+              disabled={!audit || items.length === 0}
+              className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-xl transition text-xs flex items-center gap-1.5 shadow-md"
+            >
+              <i className="ph-bold ph-file-pdf"></i>
+              {lang === "en" ? "Save PDF" : "حفظ ملف الجرد PDF"}
+            </button>
+            <button
+              onClick={handleShare}
+              disabled={!audit}
+              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-xl transition text-xs flex items-center gap-1.5 shadow-md"
+            >
+              <i className="ph-bold ph-share-network"></i>
+              {lang === "en" ? "Share Report" : "مشاركة التقرير"}
+            </button>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-2 rounded-xl transition text-xs"
+          >
+            {lang === "en" ? "Close" : "إغلاق"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
