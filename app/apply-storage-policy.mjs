@@ -1,6 +1,11 @@
+import "dotenv/config";
 import postgres from "postgres";
 
-const connectionString = "postgresql://postgres:Aa11788%4011788@db.hipgihzbfjdlnqxoikyv.supabase.co:5432/postgres";
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error("Missing DATABASE_URL environment variable.");
+  process.exit(1);
+}
 const sql = postgres(connectionString, { ssl: { rejectUnauthorized: false } });
 
 async function run() {

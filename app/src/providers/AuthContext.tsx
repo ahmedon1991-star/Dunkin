@@ -74,7 +74,7 @@ interface AuthContextType {
   selectedBranch: string;
   setSelectedBranch: (code: string) => void;
   branchesList: BranchRecord[];
-  login: (branchCode: string, employeeId: string) => Promise<{ success: boolean; message: string; status?: string }>;
+  login: (branchCode: string, employeeId: string, adminPin?: string) => Promise<{ success: boolean; message: string; status?: string }>;
   submitRegistrationRequest: (fullName: string, employeeId: string, branchCode: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   // Admin Methods
@@ -298,10 +298,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchBranchesList();
   }, []);
 
-  const login = async (branchCode: string, employeeId: string) => {
+  const login = async (branchCode: string, employeeId: string, adminPin?: string) => {
     setIsLoading(true);
     const cleanBranch = branchCode.trim();
     const cleanEmpId = employeeId.trim();
+
+    // Secure Admin PIN Check
+    // Default system admin PIN is "11788" or "987654" - required to obtain role 'admin'
+    const ADMIN_SECRET_PIN = "11788";
+
+    // If attempting to login as Admin account (10001)
+    if (cleanEmpId === "10001") {
+      if (!adminPin || adminPin.trim() !== ADMIN_SECRET_PIN) {
+        setIsLoading(false);
+        return {
+          success: false,
+          status: "unauthorized",
+          message: "رمز الحماية السري للأدمن (Admin PIN) غير صحيح! تم حظر محاولة الدخول.",
+        };
+      }
+
+      const branchObj = branchesList.find((b) => b.branch_code === cleanBranch);
+      const adminSession: UserSession = {
+        id: "admin-1",
+        employee_id: "10001",
+        full_name: "مدير النظام (الأدمن)",
+        branch_code: cleanBranch,
+        branch_name: branchObj?.branch_name || "فرع الرياض الرئيسي - العليا",
+        role: "admin",
+        logged_at: new Date().toISOString()
+      };
+      setSession(adminSession);
+      setSelectedBranch(cleanBranch);
+      localStorage.setItem(SESSION_KEY, JSON.stringify(adminSession));
+      setIsLoading(false);
+      return { success: true, message: "تم التحقق من هوية مدير النظام بنجاح! أهلاً بك." };
+    }
 
     try {
       const { data, error } = await supabase.rpc("login_employee", {
@@ -329,26 +361,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Fallback
     }
 
-    // Direct table and local storage fallback for login
+    // Direct table and local storage fallback for regular staff login
     try {
-      // Admin user special handling
-      if (cleanEmpId === "10001") {
-        const branchObj = branchesList.find((b) => b.branch_code === cleanBranch);
-        const adminSession: UserSession = {
-          id: "admin-1",
-          employee_id: "10001",
-          full_name: "مدير النظام (الأدمن)",
-          branch_code: cleanBranch,
-          branch_name: branchObj?.branch_name || "فرع الرياض الرئيسي - العليا",
-          role: "admin",
-          logged_at: new Date().toISOString()
-        };
-        setSession(adminSession);
-        setSelectedBranch(cleanBranch);
-        localStorage.setItem(SESSION_KEY, JSON.stringify(adminSession));
-        setIsLoading(false);
-        return { success: true, message: "أهلاً بك يا مدير النظام!" };
-      }
 
       // Check approved employees in local storage
       const approvedLocal = getLocalApprovedEmployees();

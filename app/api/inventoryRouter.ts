@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createRouter, publicQuery } from "./middleware";
+import { createRouter, publicQuery, protectedProcedure, adminProcedure } from "./middleware";
 import {
   listProducts,
   updateProduct,
@@ -20,9 +20,11 @@ const optionalNullableImageUrl = z.preprocess((value) => {
 }, z.union([z.string().url(), z.null()]).optional());
 
 export const inventoryRouter = createRouter({
+  /** عرض المنتجات متاح للعرض */
   list: publicQuery.query(() => listProducts()),
 
-  update: publicQuery
+  /** تحديث الكمية يتطلب جلسة موثقة */
+  update: protectedProcedure
     .input(
       z.object({
         id: z.number(),
@@ -36,9 +38,12 @@ export const inventoryRouter = createRouter({
         branchCode: z.string().optional(),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const { id, updatedBy, branchCode, ...fields } = input;
-      await updateProduct(id, fields, { updatedBy, branchCode });
+      // Auto-bind author to verified session if available
+      const author = ctx.user?.fullName || updatedBy || "موظف الفرع";
+      const branch = ctx.user?.branchCode || branchCode || "1011125";
+      await updateProduct(id, fields, { updatedBy: author, branchCode: branch });
       return { ok: true };
     }),
 
@@ -46,7 +51,8 @@ export const inventoryRouter = createRouter({
     .input(z.object({ productId: z.number().optional() }).optional())
     .query(({ input }) => getStockLogs(input?.productId)),
 
-  add: publicQuery
+  /** إضافة منتج: مخصص لمدير النظام (الأدمن) فقط */
+  add: adminProcedure
     .input(
       z.object({
         code: z.string().min(1),
@@ -64,7 +70,8 @@ export const inventoryRouter = createRouter({
       return { ok: true };
     }),
 
-  edit: publicQuery
+  /** تعديل منتج: مخصص لمدير النظام (الأدمن) فقط */
+  edit: adminProcedure
     .input(
       z.object({
         id: z.number(),
@@ -84,23 +91,25 @@ export const inventoryRouter = createRouter({
       return { ok: true };
     }),
 
-  remove: publicQuery
+  /** حذف منتج: مخصص لمدير النظام (الأدمن) فقط */
+  remove: adminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       await deleteProduct(input.id);
       return { ok: true };
     }),
 
-  snapshots: publicQuery.query(() => listInventorySnapshots()),
+  snapshots: protectedProcedure.query(() => listInventorySnapshots()),
 
-  saveSnapshot: publicQuery
+  saveSnapshot: protectedProcedure
     .input(z.object({ period: z.enum(["weekly", "monthly"]), data: z.string().min(2) }))
     .mutation(async ({ input }) => {
       await saveInventorySnapshot(input.period, input.data);
       return { ok: true };
     }),
 
-  resetAll: publicQuery.mutation(async () => {
+  /** تصفير المخزون: محمي بأعلى مستوى صلاحية (الأدمن فقط) */
+  resetAll: adminProcedure.mutation(async () => {
     await resetAllStock();
     return { ok: true };
   }),

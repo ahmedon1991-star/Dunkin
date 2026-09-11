@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createRouter, publicQuery } from "./middleware";
+import { createRouter, publicQuery, protectedProcedure, adminProcedure } from "./middleware";
 import {
   createAudit,
   listAudits,
@@ -21,8 +21,8 @@ const auditItemSchema = z.object({
 });
 
 export const auditRouter = createRouter({
-  /** إنشاء جرد جديد (مسودة) */
-  create: publicQuery
+  /** إنشاء جرد جديد (مسودة) - يتطلب تسجيل دخول */
+  create: protectedProcedure
     .input(
       z.object({
         auditType: z.enum(["weekly", "monthly"]),
@@ -48,8 +48,8 @@ export const auditRouter = createRouter({
       return { audit, items };
     }),
 
-  /** حفظ / تحديث البنود كمسودة */
-  saveDraft: publicQuery
+  /** حفظ / تحديث البنود كمسودة - يتطلب تسجيل دخول */
+  saveDraft: protectedProcedure
     .input(
       z.object({
         auditId: z.number().int(),
@@ -62,8 +62,8 @@ export const auditRouter = createRouter({
       return { ok: true };
     }),
 
-  /** اعتماد الجرد نهائياً */
-  finalize: publicQuery
+  /** اعتماد الجرد نهائياً - يتطلب تسجيل دخول */
+  finalize: protectedProcedure
     .input(
       z.object({
         auditId: z.number().int(),
@@ -77,8 +77,8 @@ export const auditRouter = createRouter({
       return { ok: true };
     }),
 
-  /** حذف جرد */
-  delete: publicQuery
+  /** حذف جرد - مخصص للأدمن فقط لمنع التلاعب بسجلات الجرد */
+  delete: adminProcedure
     .input(z.object({ id: z.number().int() }))
     .mutation(async ({ input }) => {
       await deleteAudit(input.id);

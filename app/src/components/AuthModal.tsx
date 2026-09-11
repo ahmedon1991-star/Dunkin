@@ -17,6 +17,7 @@ export function AuthModal({ isOpen, onClose, allowClose = true }: { isOpen: bool
   // Admin Login States
   const [adminBranchCode, setAdminBranchCode] = useState("0000000");
   const [adminEmployeeId, setAdminEmployeeId] = useState("10001");
+  const [adminPin, setAdminPin] = useState("");
 
   if (!isOpen) return null;
 
@@ -49,12 +50,15 @@ export function AuthModal({ isOpen, onClose, allowClose = true }: { isOpen: bool
     e.preventDefault();
     setAlert(null);
 
-    if (!adminBranchCode.trim() || !adminEmployeeId.trim()) {
-      setAlert({ type: "error", message: lang === "en" ? "Please fill all required fields" : "يرجى تعبئة بيانات دخول الأدمن" });
+    if (!adminBranchCode.trim() || !adminEmployeeId.trim() || !adminPin.trim()) {
+      setAlert({
+        type: "error",
+        message: lang === "en" ? "Please enter Admin Branch, ID and Secret PIN" : "يرجى تعبئة رقم الفرع والرقم الوظيفي ورمز الحماية السري للأدمن"
+      });
       return;
     }
 
-    const res = await login(adminBranchCode, adminEmployeeId);
+    const res = await login(adminBranchCode, adminEmployeeId, adminPin);
     if (res.success) {
       setAlert({ type: "success", message: res.message });
       setTimeout(() => {
@@ -276,6 +280,27 @@ export function AuthModal({ isOpen, onClose, allowClose = true }: { isOpen: bool
                   placeholder="10001"
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-slate-900 font-bold outline-none focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/10 transition font-mono text-sm tracking-wider"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>{lang === "en" ? "Admin Security PIN / Password *" : "رمز الحماية السري للأدمن (PIN) *"}</span>
+                  <span className="text-[10px] text-purple-700 font-semibold">{lang === "en" ? "Required for Admin" : "مطلوب لتأكيد الصلاحية"}</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    required
+                    value={adminPin}
+                    onChange={(e) => setAdminPin(e.target.value)}
+                    placeholder="••••••"
+                    autoComplete="current-password"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-slate-900 font-bold outline-none focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/10 transition font-mono text-sm tracking-widest"
+                  />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                    <i className="ph-bold ph-key text-base"></i>
+                  </div>
+                </div>
               </div>
 
               <button

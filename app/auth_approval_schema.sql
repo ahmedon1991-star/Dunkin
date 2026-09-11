@@ -39,15 +39,17 @@ ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE employee_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
 
--- Create Policies for Anonymous & Authenticated App Access
+-- Hardened Policies: Read-only access for public/anonymous client queries
+-- All mutations (Insert, Update, Delete) are strictly mediated through SECURITY DEFINER RPCs
 DROP POLICY IF EXISTS "Allow read branches" ON branches;
+DROP POLICY IF EXISTS "Allow all on branches" ON branches;
 CREATE POLICY "Allow read branches" ON branches FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Allow all on requests" ON employee_requests;
-CREATE POLICY "Allow all on requests" ON employee_requests FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow read requests" ON employee_requests FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Allow all on employees" ON employees;
-CREATE POLICY "Allow all on employees" ON employees FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow read active employees" ON employees FOR SELECT USING (is_active = true);
 
 -- Insert Default Demo Branches
 INSERT INTO branches (branch_code, branch_name) VALUES
