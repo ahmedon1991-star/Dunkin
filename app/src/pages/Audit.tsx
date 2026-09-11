@@ -45,7 +45,7 @@ const diffOf = (actual: string, system: number | null): number | null => {
 
 export default function Audit() {
   const navigate = useNavigate();
-  const { lang, toggleLang, t, getProductName, getCategoryName, getUnitName, getEmployeeName } = useLanguage();
+  const { lang, toggleLang, t, getProductName, getCategoryName, getUnitName, getEmployeeName, getBranchName } = useLanguage();
   const { session, selectedBranch, branchesList, sendAdminSubmission } = useAuth();
 
   useEffect(() => {
