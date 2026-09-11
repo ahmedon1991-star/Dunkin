@@ -813,7 +813,7 @@ export default function Home() {
               <h3 className="text-lg font-bold text-slate-700 mb-1">{t("searchNoResults")}</h3>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5">
               {filtered.map((p) => (
                 <ProductCard
                   key={p.id}
@@ -1023,77 +1023,167 @@ export default function Home() {
 
       {/* MODAL: ORDER LIST */}
       {showOrder && (
-        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 modal-enter" onClick={() => setShowOrder(false)}>
-          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative modal-content-enter flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 pb-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 rounded-t-3xl">
-              <h3 className="text-lg md:text-xl font-extrabold text-slate-800 flex items-center gap-2">
-                <span className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-3 sm:p-4 modal-enter" onClick={() => setShowOrder(false)}>
+          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl relative modal-content-enter flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 rounded-t-3xl">
+              <div className="flex items-center gap-2.5">
+                <span className="w-9 h-9 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shadow-inner text-base">
                   <i className="ph-bold ph-shopping-cart"></i>
                 </span>
-                {t("nextDayOrder")}
-              </h3>
-              <button onClick={() => setShowOrder(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-slate-500 hover:bg-slate-200 border border-slate-200 transition">
-                <i className="ph-bold ph-x"></i>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                    {t("nextDayOrder")}
+                    <span className="text-xs bg-blue-100 text-blue-700 font-mono px-2 py-0.5 rounded-full font-bold">
+                      {orderedItems.length}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {lang === "en" ? "Review tomorrow's cargo items before dispatching" : "مراجعة كميات وأصناف بضاعة الغد قبل الاعتماد"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowOrder(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-200 border border-slate-200 transition"
+              >
+                <i className="ph-bold ph-x text-sm"></i>
               </button>
             </div>
-            <div className="p-6 overflow-y-auto flex-1 space-y-3">
+
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-2.5">
               {orderedItems.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 font-bold">
-                  {lang === "en" ? "Order list is currently empty. Click on cart (🛒) icon on any product to set order quantity!" : "قائمة الطلبات فارغة حالياً. اضغط على أيقونة السلة (🛒) في أي منتج لتحديد الكمية المطلوبة!"}
+                <div className="py-16 text-center text-slate-400 font-bold bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                  <i className="ph-duotone ph-shopping-cart text-4xl mb-2 text-slate-300 block"></i>
+                  {lang === "en"
+                    ? "Order list is currently empty. Click on cart (🛒) icon on any product to set order quantity!"
+                    : "قائمة الطلبات فارغة حالياً. اضغط على أيقونة السلة (🛒) في أي صنف لتحديد الكمية المطلوبة!"}
                 </div>
               ) : (
-                orderedItems.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                    <div className="flex-1 pr-2">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">#{p.code}</span>
-                        <span className="text-xs font-bold text-slate-500">{getUnitName(p.unitCode, p.unitLabel)}</span>
+                orderedItems.map((p) => {
+                  const currentUnitLabel = getSelectedOrderUnitLabel(p.id, p.unitCode, p.unitLabel);
+                  const currentQty = p.orderQty ?? 1;
+                  return (
+                    <div
+                      key={p.id}
+                      className="bg-white hover:bg-slate-50/80 border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs transition"
+                    >
+                      {/* Product details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                          <span className="text-[11px] font-mono font-black text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
+                            #{p.code}
+                          </span>
+                          <span className="text-[10.5px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                            {getUnitName(p.unitCode, p.unitLabel)}
+                          </span>
+                        </div>
+                        <h5 className="text-sm font-black text-slate-900 truncate leading-snug">
+                          {getProductName(p)}
+                        </h5>
+                        <p className="text-[11px] font-sans text-slate-400 truncate mt-0.5" dir="ltr">
+                          {lang === "en" ? p.nameAr : p.nameEn}
+                        </p>
                       </div>
-                      <h5 className="text-sm font-extrabold text-slate-800">{getProductName(p)}</h5>
-                      <p className="text-[11px] font-sans text-slate-400" dir="ltr">{lang === "en" ? p.nameAr : p.nameEn}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="bg-amber-100 text-amber-950 font-black px-3 py-1.5 rounded-xl text-sm font-sans flex items-center gap-1.5 shadow-sm">
-                        <span>{lang === "en" ? `Order: ${p.orderQty}` : `الطلب: ${p.orderQty}`}</span>
-                        <span className="text-xs bg-amber-200/90 text-amber-900 px-2 py-0.5 rounded-lg font-bold">
-                          {getSelectedOrderUnitLabel(p.id, p.unitCode, p.unitLabel)}
-                        </span>
+
+                      {/* Stepper, Quantity Badge, & Delete */}
+                      <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                        <div className="flex items-center gap-1 bg-amber-50/90 border border-amber-200 p-1 rounded-xl">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = currentQty - 1;
+                              patch(p.id, { orderQty: next > 0 ? next : null });
+                            }}
+                            className="w-7 h-7 rounded-lg bg-white hover:bg-amber-100 text-amber-900 border border-amber-200/70 flex items-center justify-center font-black active:scale-95 transition text-xs shadow-2xs"
+                            title={lang === "en" ? "Decrease" : "إنقاص"}
+                          >
+                            <i className="ph-bold ph-minus"></i>
+                          </button>
+                          <div className="px-2.5 py-0.5 text-center min-w-[75px]">
+                            <span className="text-sm font-black text-amber-950 font-sans block leading-tight">
+                              {currentQty}
+                            </span>
+                            <span className="text-[10px] font-bold text-amber-800 leading-none block">
+                              {currentUnitLabel}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => patch(p.id, { orderQty: currentQty + 1 })}
+                            className="w-7 h-7 rounded-lg bg-white hover:bg-amber-100 text-amber-900 border border-amber-200/70 flex items-center justify-center font-black active:scale-95 transition text-xs shadow-2xs"
+                            title={lang === "en" ? "Increase" : "زيادة"}
+                          >
+                            <i className="ph-bold ph-plus"></i>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => patch(p.id, { orderQty: null })}
+                          className="w-8 h-8 flex items-center justify-center text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl border border-transparent hover:border-rose-200 transition shrink-0"
+                          title={lang === "en" ? "Remove item" : "حذف الصنف"}
+                        >
+                          <i className="ph-bold ph-trash text-base"></i>
+                        </button>
                       </div>
-                      <button
-                        onClick={() => patch(p.id, { orderQty: null })}
-                        className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition"
-                        title={lang === "en" ? "Remove" : "حذف"}
-                      >
-                        <i className="ph-bold ph-trash text-base"></i>
-                      </button>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
-            <div className="p-4 border-t border-slate-100 flex flex-wrap gap-2 bg-white rounded-b-3xl">
-              <button onClick={() => setShowOrder(false)} className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-2.5 rounded-xl transition text-xs">
-                {t("cancel")}
-              </button>
-              <button onClick={copyOrderText} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition shadow-md flex items-center justify-center gap-1 text-xs">
-                <i className="ph-bold ph-copy"></i> {t("copySuccess").replace("!", "")}
-              </button>
-              <button
-                onClick={() => {
-                  setShowOrder(false);
-                  setShowReceivingModal(true);
-                }}
-                className="flex-[1.4] bg-amber-500 hover:bg-amber-600 text-slate-950 font-black py-2.5 px-3 rounded-xl transition shadow-md flex items-center justify-center gap-1.5 text-xs"
-                title={lang === "en" ? "Check arrived products and intake to stock" : "فحص المنتجات الواصلة وتوريدها للمخزون"}
-              >
-                <i className="ph-bold ph-package-receive text-base"></i> {lang === "en" ? "Receive Now 📥" : "استلام المنتجات 📥"}
-              </button>
-              <button onClick={handleSendOrderToAdmin} className="flex-[1.5] bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-3 rounded-xl transition shadow-md flex items-center justify-center gap-1.5 text-xs">
-                <i className="ph-bold ph-paper-plane-tilt text-sm"></i> {lang === "en" ? "Send to Admin 🚀" : "إرسال للأدمن 🚀"}
-              </button>
-              <button onClick={printOrderPdf} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1 text-xs" title="PDF">
-                <i className="ph-bold ph-file-pdf"></i> PDF
-              </button>
+
+            {/* Modal Actions Footer */}
+            <div className="p-3.5 sm:p-4 border-t border-slate-100 bg-slate-50/70 rounded-b-3xl space-y-2">
+              {/* Primary Actions Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  onClick={handleSendOrderToAdmin}
+                  disabled={orderedItems.length === 0}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-2.5 px-3 rounded-xl transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 text-xs sm:text-sm active:scale-[0.99]"
+                >
+                  <i className="ph-bold ph-paper-plane-tilt text-base"></i>
+                  <span>{lang === "en" ? "Send Order to Admin 🚀" : "إرسال الطلب للأدمن 🚀"}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowOrder(false);
+                    setShowReceivingModal(true);
+                  }}
+                  disabled={orderedItems.length === 0}
+                  className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-black py-2.5 px-3 rounded-xl transition shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 text-xs sm:text-sm active:scale-[0.99]"
+                  title={lang === "en" ? "Check arrived products and intake to stock" : "فحص المنتجات الواصلة وتوريدها للمخزون"}
+                >
+                  <i className="ph-bold ph-package-receive text-base"></i>
+                  <span>{lang === "en" ? "Receive Products 📥" : "استلام المنتجات وتوريدها 📥"}</span>
+                </button>
+              </div>
+
+              {/* Secondary Utility Actions Row */}
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={copyOrderText}
+                  disabled={orderedItems.length === 0}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5 text-xs"
+                >
+                  <i className="ph-bold ph-copy text-sm"></i>
+                  <span>{lang === "en" ? "Copy List" : "نسخ القائمة"}</span>
+                </button>
+                <button
+                  onClick={printOrderPdf}
+                  disabled={orderedItems.length === 0}
+                  className="bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 text-xs shadow-sm"
+                  title="PDF"
+                >
+                  <i className="ph-bold ph-file-pdf text-sm text-rose-400"></i>
+                  <span>PDF</span>
+                </button>
+                <button
+                  onClick={() => setShowOrder(false)}
+                  className="bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold py-2 rounded-xl transition text-xs shadow-2xs"
+                >
+                  {t("cancel")}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1283,10 +1373,10 @@ function ProductCard({
   const unitName = getUnitName(p.unitCode, p.unitLabel);
 
   return (
-    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 hover:border-blue-500/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between h-full relative group">
+    <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 hover:border-blue-500/50 hover:shadow-lg transition-all duration-200 flex flex-col justify-between h-full relative group">
       <div>
         {/* Top Header Row of the Card: Code, Unit, and Stock Status */}
-        <div className="flex items-center justify-between gap-1.5 mb-2.5">
+        <div className="flex items-center justify-between gap-1.5 mb-2">
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => onCopyCode(p.code)}
@@ -1303,17 +1393,17 @@ function ProductCard({
 
           {/* Smart Stock Status Badge */}
           {qtyVal === 0 ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
+            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
               {lang === "ar" ? "نفد" : "Out of Stock"}
             </span>
           ) : qtyVal <= 10 ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
               {lang === "ar" ? "منخفض" : "Low Stock"}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               {lang === "ar" ? "متوفر" : "In Stock"}
             </span>
@@ -1323,14 +1413,14 @@ function ProductCard({
         {/* Product Image preview if available */}
         {p.imageUrl && (
           <div
-            className="mb-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 shadow-inner cursor-pointer relative group/img"
+            className="mb-2.5 overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 shadow-inner cursor-pointer relative group/img"
             onClick={() => onOpenHistory(p)}
             title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
           >
             <img
               src={p.imageUrl}
               alt={productName}
-              className="h-32 w-full object-cover group-hover/img:scale-105 transition duration-300"
+              className="h-24 sm:h-28 w-full object-cover group-hover/img:scale-105 transition duration-300"
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition"></div>
@@ -1351,15 +1441,15 @@ function ProductCard({
           </div>
 
           <div className="flex items-start justify-between gap-1.5">
-            <h4 className="text-[15px] font-black text-slate-900 leading-snug group-hover/title:text-blue-600 transition">
+            <h4 className="text-sm font-black text-slate-900 leading-snug group-hover/title:text-blue-600 transition line-clamp-2">
               {productName}
             </h4>
-            <span className="w-6 h-6 rounded-full bg-slate-100 group-hover/title:bg-blue-50 text-slate-400 group-hover/title:text-blue-600 flex items-center justify-center shrink-0 transition text-xs">
+            <span className="w-5 h-5 rounded-full bg-slate-100 group-hover/title:bg-blue-50 text-slate-400 group-hover/title:text-blue-600 flex items-center justify-center shrink-0 transition text-xs">
               <i className="ph-bold ph-info"></i>
             </span>
           </div>
           {secondaryName && (
-            <p className="text-[11px] font-semibold text-slate-400 line-clamp-1 mt-0.5">
+            <p className="text-[10.5px] font-semibold text-slate-400 truncate mt-0.5" dir="ltr">
               {secondaryName}
             </p>
           )}
@@ -1373,7 +1463,7 @@ function ProductCard({
               e.stopPropagation();
               onOpenHistory(p);
             }}
-            className="w-full mb-3 flex items-center justify-between text-[11px] font-bold px-2.5 py-1.5 rounded-2xl bg-slate-50 hover:bg-blue-50/50 text-slate-700 transition border border-slate-200/80 shadow-2xs"
+            className="w-full mb-2 flex items-center justify-between text-[10.5px] font-bold px-2 py-1 rounded-xl bg-slate-50 hover:bg-blue-50/50 text-slate-700 transition border border-slate-200/80 shadow-2xs"
             title={lang === "en" ? "Click to view full stock update details & history" : "اضغط لمعاينة تفاصيل آخر تحديث وسجل الحركات"}
           >
             <span className="flex items-center gap-1 text-slate-500">
@@ -1391,12 +1481,12 @@ function ProductCard({
               e.stopPropagation();
               onOpenHistory(p);
             }}
-            className="w-full mb-3 flex items-center justify-between text-[10.5px] font-bold px-2.5 py-1.5 rounded-2xl bg-slate-50/60 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition border border-dashed border-slate-200"
+            className="w-full mb-2 flex items-center justify-between text-[10px] font-bold px-2 py-1 rounded-xl bg-slate-50/60 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition border border-dashed border-slate-200"
             title={lang === "en" ? "Click to view stock history" : "اضغط لمعاينة سجل حركات الصنف"}
           >
             <span className="flex items-center gap-1">
               <i className="ph-bold ph-clock-counter-clockwise text-slate-400"></i>
-              <span>{lang === "en" ? "Stock Audit Log" : "سجل الحركات"}</span>
+              <span>{lang === "en" ? "Audit Log" : "سجل الحركات"}</span>
             </span>
             <span className="text-blue-600 font-black text-[10px]">{lang === "en" ? "Inspect ❯" : "معاينة ❯"}</span>
           </button>
@@ -1404,16 +1494,16 @@ function ProductCard({
       </div>
 
       {/* Card Controls & Stock Mutation Area */}
-      <div className="mt-auto space-y-2 pt-2.5 border-t border-slate-100">
+      <div className="mt-auto space-y-1.5 pt-2 border-t border-slate-100">
         {/* Mode Switcher Toggle */}
         <div className="flex items-center justify-between px-0.5">
-          <span className="text-[11px] font-bold text-slate-500">
+          <span className="text-[10.5px] font-bold text-slate-500">
             {lang === "en" ? "Count Mode:" : "طريقة الجرد:"}
           </span>
           <button
             onClick={() => onPatch(p.id, { mode: isDetailed ? "simple" : "detailed" })}
             title={lang === "en" ? "Switch view mode" : "تبديل طريقة الجرد"}
-            className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 flex items-center gap-1 transition shadow-2xs"
+            className="text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 flex items-center gap-1 transition shadow-2xs"
           >
             <i className="ph-bold ph-arrows-clockwise text-blue-600"></i>
             {isDetailed ? (lang === "en" ? "Detailed" : "تفصيلي") : (lang === "en" ? "Simple" : "بسيط")}
@@ -1422,63 +1512,63 @@ function ProductCard({
 
         {!isDetailed ? (
           <>
-            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl p-1.5 shadow-inner">
-              <span className="text-xs font-bold text-slate-700 px-1.5 flex items-center gap-1">
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-1 shadow-inner">
+              <span className="text-[11px] font-bold text-slate-700 px-1 flex items-center gap-1">
                 <i className="ph-bold ph-tag text-blue-600"></i> {t("availableQty")}:
               </span>
-              <div className="flex items-center gap-1.5">
-                {stepBtn("qty", -1, "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-600 border border-slate-200 shadow-2xs", "ph-minus", true)}
-                {numInput("qty", "w-16 text-lg border-slate-200 rounded-xl", "", "0")}
-                {stepBtn("qty", 1, "bg-blue-600 hover:bg-blue-700 text-white shadow-sm", "ph-plus", true)}
+              <div className="flex items-center gap-1">
+                {stepBtn("qty", -1, "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-600 border border-slate-200 shadow-2xs", "ph-minus", false)}
+                {numInput("qty", "w-14 text-base py-0.5 border-slate-200 rounded-lg", "", "0")}
+                {stepBtn("qty", 1, "bg-blue-600 hover:bg-blue-700 text-white shadow-sm", "ph-plus", false)}
               </div>
             </div>
-            <div className="bg-slate-900 text-white p-2.5 rounded-2xl shadow-md flex items-center justify-between">
+            <div className="bg-slate-900 text-white py-1.5 px-2.5 rounded-xl shadow-sm flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-bold text-slate-400 block leading-none">{t("totalStock")}</span>
-                <span className="text-[10px] text-emerald-400 font-bold">{t("directAudit")}</span>
+                <span className="text-[9.5px] font-bold text-slate-400 block leading-none">{t("totalStock")}</span>
+                <span className="text-[9.5px] text-emerald-400 font-bold">{t("directAudit")}</span>
               </div>
-              <span className="text-base font-black font-sans text-amber-300">
-                {lang === 'ar' ? arNum(qtyVal) : qtyVal.toLocaleString("en-US")} <span className="text-[10px] text-white font-normal">{unitName}</span>
+              <span className="text-sm font-black font-sans text-amber-300">
+                {lang === 'ar' ? arNum(qtyVal) : qtyVal.toLocaleString("en-US")} <span className="text-[9.5px] text-white font-normal">{unitName}</span>
               </span>
             </div>
           </>
         ) : (
           <>
-            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-1.5 shadow-2xs">
-              <span className="text-xs font-bold text-slate-700 px-1 flex items-center gap-1">
-                <i className="ph-bold ph-package text-blue-600 text-sm"></i> {t("numPacks")}:
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-1 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-700 px-1 flex items-center gap-1">
+                <i className="ph-bold ph-package text-blue-600 text-xs"></i> {t("numPacks")}:
               </span>
               <div className="flex items-center gap-1">
                 {stepBtn("packs", -1, "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-600 border border-slate-200", "ph-minus")}
-                {numInput("packs", "w-14 border-slate-200 rounded-lg", "", "0")}
+                {numInput("packs", "w-12 py-0.5 border-slate-200 rounded-md", "", "0")}
                 {stepBtn("packs", 1, "bg-white hover:bg-blue-50 hover:text-blue-600 text-slate-600 border border-slate-200", "ph-plus")}
               </div>
             </div>
-            <div className="flex items-center justify-between bg-amber-50/80 border border-amber-300/80 rounded-xl p-1.5 shadow-2xs">
-              <span className="text-xs font-bold text-amber-900 px-1 flex items-center gap-1">
-                <i className="ph-bold ph-squares-four text-amber-600 text-sm"></i> {t("packSizeLabel")}:
+            <div className="flex items-center justify-between bg-amber-50/80 border border-amber-300/80 rounded-lg p-1 shadow-2xs">
+              <span className="text-[11px] font-bold text-amber-900 px-1 flex items-center gap-1">
+                <i className="ph-bold ph-squares-four text-amber-600 text-xs"></i> {t("packSizeLabel")}:
               </span>
               <div className="flex items-center pl-0.5">
-                {numInput("packSize", "w-24 border-amber-300 rounded-lg text-amber-900 placeholder:text-[11px] placeholder:font-normal focus:border-amber-500", "", t("writeCapacity"))}
+                {numInput("packSize", "w-20 py-0.5 border-amber-300 rounded-md text-amber-900 placeholder:text-[10px] placeholder:font-normal focus:border-amber-500", "", t("writeCapacity"))}
               </div>
             </div>
-            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-1.5 shadow-2xs">
-              <span className="text-xs font-bold text-slate-700 px-1 flex items-center gap-1">
-                <i className="ph-bold ph-stack text-emerald-600 text-sm"></i> {t("loosePiecesCount")}:
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-1 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-700 px-1 flex items-center gap-1">
+                <i className="ph-bold ph-stack text-emerald-600 text-xs"></i> {t("loosePiecesCount")}:
               </span>
               <div className="flex items-center gap-1">
                 {stepBtn("loose", -1, "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-600 border border-slate-200", "ph-minus")}
-                {numInput("loose", "w-14 border-slate-200 rounded-lg", "", "0")}
+                {numInput("loose", "w-12 py-0.5 border-slate-200 rounded-md", "", "0")}
                 {stepBtn("loose", 1, "bg-white hover:bg-emerald-50 hover:text-emerald-600 text-slate-600 border border-slate-200", "ph-plus")}
               </div>
             </div>
-            <div className="bg-slate-900 text-white p-2.5 rounded-2xl shadow-md flex items-center justify-between">
+            <div className="bg-slate-900 text-white py-1.5 px-2.5 rounded-xl shadow-sm flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-bold text-slate-400 block leading-none">{t("actualTotal")}</span>
-                <span className="text-[10px] text-amber-400 font-mono">{formulaText}</span>
+                <span className="text-[9.5px] font-bold text-slate-400 block leading-none">{t("actualTotal")}</span>
+                <span className="text-[9.5px] text-amber-400 font-mono">{formulaText}</span>
               </div>
-              <span className="text-base font-black font-sans text-amber-300">
-                {lang === 'ar' ? arNum(total) : total.toLocaleString("en-US")} <span className="text-[10px] text-white font-normal">{t("pcs")}</span>
+              <span className="text-sm font-black font-sans text-amber-300">
+                {lang === 'ar' ? arNum(total) : total.toLocaleString("en-US")} <span className="text-[9.5px] text-white font-normal">{t("pcs")}</span>
               </span>
             </div>
           </>
@@ -1487,7 +1577,7 @@ function ProductCard({
         {/* Order Cart Action Button */}
         <button
           onClick={() => onOrder(p.id)}
-          className={`w-full py-2.5 px-3 rounded-2xl font-bold text-xs transition flex items-center justify-between shadow-sm ${
+          className={`w-full py-2 px-2.5 rounded-xl font-bold text-xs transition flex items-center justify-between shadow-2xs ${
             hasOrder
               ? "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/25"
               : "bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/80"
@@ -1498,7 +1588,7 @@ function ProductCard({
             <span>{hasOrder ? (lang === "en" ? "Order Added:" : "مطلوب لطلبية الغد:") : (lang === "en" ? "Add to Order" : "إضافة لقائمة الطلب")}</span>
           </span>
           {hasOrder ? (
-            <span className="bg-white/20 px-2 py-0.5 rounded-lg text-xs font-black">
+            <span className="bg-white/20 px-1.5 py-0.5 rounded-md text-[11px] font-black">
               {p.orderQty} {orderUnit === "CTN" ? (lang === "en" ? "CTN" : "كرتون") : orderUnit === "PKT" ? (lang === "en" ? "PKT" : "باكت") : (lang === "en" ? "PCS" : "حبة")}
             </span>
           ) : (
