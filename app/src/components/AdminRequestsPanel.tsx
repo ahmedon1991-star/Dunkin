@@ -4,7 +4,18 @@ import { useAuth, type EmployeeRequest, type EmployeeRecord, type BranchRecord, 
 import { useLanguage } from "@/providers/LanguageContext";
 import { trpc } from "@/providers/trpc";
 
-export function AdminRequestsPanel() {
+export interface AdminRequestsPanelProps {
+  forcedTab?: "requests" | "submissions" | "employees" | "branches";
+  hideTabsNav?: boolean;
+  onCountsChange?: (counts: {
+    pendingRequests: number;
+    pendingSubmissions: number;
+    employeesCount: number;
+    branchesCount: number;
+  }) => void;
+}
+
+export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsChange }: AdminRequestsPanelProps = {}) {
   const navigate = useNavigate();
   const {
     fetchPendingRequests,
@@ -64,6 +75,13 @@ export function AdminRequestsPanel() {
     setBranches(branchData);
     setSubmissions(subsData);
     setIsLoading(false);
+
+    onCountsChange?.({
+      pendingRequests: reqData.filter((r) => r.status === "pending").length,
+      pendingSubmissions: subsData.filter((s) => s.status === "pending").length,
+      employeesCount: empData.length,
+      branchesCount: branchData.length,
+    });
   };
 
   useEffect(() => {
@@ -174,6 +192,7 @@ export function AdminRequestsPanel() {
     }
   };
 
+  const tabToRender = forcedTab || activeTab;
   const pendingCount = requests.filter((r) => r.status === "pending").length;
   const pendingSubmissionsCount = submissions.filter((s) => s.status === "pending").length;
 
@@ -188,104 +207,132 @@ export function AdminRequestsPanel() {
       )}
 
       {/* Header & Tabs */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 bg-violet-600 rounded-2xl flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-violet-600/30">
-            <i className="ph-bold ph-buildings"></i>
+      {!hideTabsNav ? (
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-violet-600 rounded-2xl flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-violet-600/30">
+              <i className="ph-bold ph-buildings"></i>
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-800">
+                {lang === "en" ? "Branches & Accounts Management" : "إدارة الفروع وطلبات الحسابات (الأدمن)"}
+              </h2>
+              <p className="text-xs text-slate-500 font-bold">
+                {lang === "en"
+                  ? "Enter any branch with full catalog & approve requests"
+                  : "دخول أي فرع بعرض المنتجات بالعدد الكامل والموافقة على حسابات الفروع"}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-black text-slate-800">
-              {lang === "en" ? "Branches & Accounts Management" : "إدارة الفروع وطلبات الحسابات (الأدمن)"}
-            </h2>
-            <p className="text-xs text-slate-500 font-bold">
-              {lang === "en"
-                ? "Enter any branch with full catalog & approve requests"
-                : "دخول أي فرع بعرض المنتجات بالعدد الكامل والموافقة على حسابات الفروع"}
-            </p>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setActiveTab("submissions")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === "submissions"
+                  ? "bg-violet-600 text-white shadow-md"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <i className="ph-bold ph-bell-ringing"></i>
+              {lang === "en" ? "Orders & Audit Alerts" : "تنبيهات البضاعة والجرد"}
+              {pendingSubmissionsCount > 0 ? (
+                <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+                  {pendingSubmissionsCount}
+                </span>
+              ) : (
+                <span className="bg-slate-200 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-black">
+                  {submissions.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("requests")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === "requests"
+                  ? "bg-violet-600 text-white shadow-md"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <i className="ph-bold ph-clock"></i>
+              {lang === "en" ? "Pending Requests" : "طلبات التسجيل المعلقة"}
+              {pendingCount > 0 && (
+                <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("employees")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === "employees"
+                  ? "bg-violet-600 text-white shadow-md"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <i className="ph-bold ph-users"></i>
+              {lang === "en" ? "Active Employees" : "الموظفين المعتمدين"}
+              <span className="bg-slate-200 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-black">
+                {employees.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("branches")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === "branches"
+                  ? "bg-violet-600 text-white shadow-md"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <i className="ph-bold ph-storefront"></i>
+              {lang === "en" ? "Branches & Catalog Entry" : "الفروع والمنتجات الكاملة"}
+              <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
+                {branches.length}
+              </span>
+            </button>
+
+            <button
+              onClick={loadData}
+              title={lang === "en" ? "Refresh" : "تحديث القائمة"}
+              className="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition"
+            >
+              <i className={`ph-bold ph-arrows-clockwise text-base ${isLoading ? "animate-spin" : ""}`}></i>
+            </button>
           </div>
         </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setActiveTab("submissions")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-              activeTab === "submissions"
-                ? "bg-violet-600 text-white shadow-md"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            <i className="ph-bold ph-bell-ringing"></i>
-            {lang === "en" ? "Orders & Audit Alerts" : "تنبيهات البضاعة والجرد"}
-            {pendingSubmissionsCount > 0 ? (
-              <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
-                {pendingSubmissionsCount}
-              </span>
-            ) : (
-              <span className="bg-slate-200 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-black">
-                {submissions.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("requests")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-              activeTab === "requests"
-                ? "bg-violet-600 text-white shadow-md"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            <i className="ph-bold ph-clock"></i>
-            {lang === "en" ? "Pending Requests" : "طلبات التسجيل المعلقة"}
-            {pendingCount > 0 && (
-              <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
-                {pendingCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("employees")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-              activeTab === "employees"
-                ? "bg-violet-600 text-white shadow-md"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            <i className="ph-bold ph-users"></i>
-            {lang === "en" ? "Active Employees" : "الموظفين المعتمدين"}
-            <span className="bg-slate-200 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-black">
-              {employees.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("branches")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-              activeTab === "branches"
-                ? "bg-violet-600 text-white shadow-md"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            <i className="ph-bold ph-storefront"></i>
-            {lang === "en" ? "Branches & Catalog Entry" : "الفروع والمنتجات الكاملة"}
-            <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
-              {branches.length}
-            </span>
-          </button>
-
+      ) : (
+        <div className="flex items-center justify-between gap-4 mb-5 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
+              <i className={`ph-bold text-lg ${
+                tabToRender === "branches" ? "ph-storefront" :
+                tabToRender === "employees" ? "ph-users" :
+                tabToRender === "requests" ? "ph-clock" : "ph-bell-ringing"
+              }`}></i>
+            </div>
+            <h2 className="text-base font-black text-slate-900">
+              {tabToRender === "branches" && (lang === "en" ? "Branches Management" : "إدارة الفروع والتحكم")}
+              {tabToRender === "employees" && (lang === "en" ? "Active Employees" : "قائمة الموظفين المعتمدين")}
+              {tabToRender === "requests" && (lang === "en" ? "Pending Requests" : "طلبات انضمام الموظفين")}
+              {tabToRender === "submissions" && (lang === "en" ? "Orders & Audit Alerts" : "تنبيهات البضاعة وتقارير الجرد")}
+            </h2>
+          </div>
           <button
             onClick={loadData}
-            title={lang === "en" ? "Refresh" : "تحديث القائمة"}
-            className="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition"
+            title={lang === "en" ? "Refresh" : "تحديث"}
+            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold flex items-center gap-1.5 transition"
           >
-            <i className={`ph-bold ph-arrows-clockwise text-base ${isLoading ? "animate-spin" : ""}`}></i>
+            <i className={`ph-bold ph-arrows-clockwise ${isLoading ? "animate-spin" : ""}`}></i>
+            <span>{lang === "ar" ? "تحديث" : "Refresh"}</span>
           </button>
         </div>
-      </div>
+      )}
 
       {/* Tab: Submissions & Alerts */}
-      {activeTab === "submissions" && (
+      {tabToRender === "submissions" && (
         <div className="space-y-4">
           {/* Sub-filter */}
           <div className="flex flex-wrap items-center justify-between bg-slate-50 p-2.5 rounded-2xl border border-slate-200 text-xs gap-2">
@@ -450,7 +497,7 @@ export function AdminRequestsPanel() {
       )}
 
       {/* Tab 1: Pending Requests */}
-      {activeTab === "requests" && (
+      {tabToRender === "requests" && (
         <div>
           {requests.filter((r) => r.status === "pending").length === 0 ? (
             <div className="py-12 text-center text-slate-400 font-bold bg-slate-50 rounded-2xl border border-dashed border-slate-200">
@@ -502,7 +549,7 @@ export function AdminRequestsPanel() {
       )}
 
       {/* Tab 2: Active Approved Employees */}
-      {activeTab === "employees" && (
+      {tabToRender === "employees" && (
         <div>
           {employees.length === 0 ? (
             <div className="py-12 text-center text-slate-400 font-bold bg-slate-50 rounded-2xl border border-dashed border-slate-200">
@@ -569,7 +616,7 @@ export function AdminRequestsPanel() {
       )}
 
       {/* Tab 3: Branches & Full Catalog Control */}
-      {activeTab === "branches" && (
+      {tabToRender === "branches" && (
         <div className="space-y-6">
           
           {/* Form to Add New Branch */}
