@@ -15,7 +15,7 @@ export function AuthModal({ isOpen, onClose, allowClose = true }: { isOpen: bool
   const [fullName, setFullName] = useState("");
 
   // Admin Login States
-  const [adminBranchCode, setAdminBranchCode] = useState("1010001");
+  const [adminBranchCode, setAdminBranchCode] = useState("0000000");
   const [adminEmployeeId, setAdminEmployeeId] = useState("10001");
 
   if (!isOpen) return null;

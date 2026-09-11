@@ -124,9 +124,7 @@ const saveLocalSubmissions = (list: AdminSubmission[]) => {
 };
 
 const DEFAULT_BRANCHES: BranchRecord[] = [
-  { branch_code: "1010001", branch_name: "فرع الرياض الرئيسي - العليا", is_active: true },
-  { branch_code: "1010002", branch_name: "فرع جدة - الكورنيش", is_active: true },
-  { branch_code: "1010003", branch_name: "فرع الدمام - الشاطئ", is_active: true }
+  { branch_code: "1011125", branch_name: "فرع الديرة - الرياض", is_active: true }
 ];
 
 const saveBranchesToStorage = (list: BranchRecord[]) => {
@@ -212,8 +210,8 @@ const getLocalApprovedEmployees = (): EmployeeRecord[] => {
     {
       id: "admin-1",
       employee_id: "10001",
-      full_name: "مدير النظام (الأدمن)",
-      branch_code: "1010001",
+      full_name: "مدير النظام",
+      branch_code: "0000000",
       role: "admin",
       is_active: true,
       created_at: new Date().toISOString()
