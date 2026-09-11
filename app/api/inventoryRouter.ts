@@ -11,6 +11,13 @@ import {
   resetAllStock,
   getStockLogs,
   receiveOrderItems,
+  listBranchTransfers,
+  createBranchTransfer,
+  adminInitialApproveTransfer,
+  sourceBranchDispatchTransfer,
+  adminFinalApproveTransfer,
+  destinationReceiveTransfer,
+  rejectBranchTransfer,
 } from "./queries/products";
 
 const unitCode = z.enum(["CTN", "PKT", "PCS"]);
@@ -144,4 +151,165 @@ export const inventoryRouter = createRouter({
     await resetAllStock();
     return { ok: true };
   }),
+
+  /** =========================================================================
+   * INTER-BRANCH TRANSFERS WORKFLOW PROCEDURES
+   * ========================================================================= */
+  
+  /** استعراض طلبات التحويل بين الفروع */
+  listTransfers: publicQuery
+    .input(
+      z.object({
+        branchCode: z.string().optional(),
+        status: z.string().optional(),
+      }).optional()
+    )
+    .query(({ input }) => listBranchTransfers(input)),
+
+  /** إنشاء طلب تحويل من فرع لفرع آخر */
+  createTransfer: protectedProcedure
+    .input(
+      z.object({
+        fromBranchCode: z.string().min(1),
+        fromBranchName: z.string().min(1),
+        toBranchCode: z.string().min(1),
+        toBranchName: z.string().min(1),
+        requestedBy: z.string().optional(),
+        requestedById: z.string().optional(),
+        notes: z.string().optional(),
+        items: z.array(
+          z.object({
+            code: z.string().min(1),
+            nameAr: z.string().min(1),
+            nameEn: z.string().optional(),
+            unit: z.string().min(1),
+            requestedQty: z.number().int().min(1),
+            notes: z.string().optional(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const author = ctx.user?.fullName || input.requestedBy || "موظف الفرع";
+      const authorId = ctx.user?.employeeId || input.requestedById || "#101";
+      return createBranchTransfer({
+        ...input,
+        requestedBy: author,
+        requestedById: authorId,
+      });
+    }),
+
+  /** موافقة الأدمن المبدئية وتعديل الكميات بالزيادة أو النقصان */
+  adminInitialApproveTransfer: adminProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        adminName: z.string().optional(),
+        notes: z.string().optional(),
+        items: z.array(
+          z.object({
+            code: z.string().min(1),
+            adminApprovedQty: z.number().int().min(0),
+          })
+        ).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const admin = ctx.user?.fullName || input.adminName || "مدير النظام (الأدمن)";
+      return adminInitialApproveTransfer({
+        id: input.id,
+        adminName: admin,
+        notes: input.notes,
+        items: input.items,
+      });
+    }),
+
+  /** تجهيز وشحن الكميات من الفرع المرسل مع إمكانية تعديل المتوفر */
+  sourceDispatchTransfer: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        employeeName: z.string().optional(),
+        notes: z.string().optional(),
+        items: z.array(
+          z.object({
+            code: z.string().min(1),
+            dispatchedQty: z.number().int().min(0),
+            notes: z.string().optional(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const author = ctx.user?.fullName || input.employeeName || "موظف الفرع المرسل";
+      return sourceBranchDispatchTransfer({
+        id: input.id,
+        employeeName: author,
+        notes: input.notes,
+        items: input.items,
+      });
+    }),
+
+  /** تأكيد الأدمن النهائي للشحن وترحيلها في الطريق */
+  adminFinalApproveTransfer: adminProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        adminName: z.string().optional(),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const admin = ctx.user?.fullName || input.adminName || "مدير النظام (الأدمن)";
+      return adminFinalApproveTransfer({
+        id: input.id,
+        adminName: admin,
+        notes: input.notes,
+      });
+    }),
+
+  /** فحص واستلام الشحنة وتحديث المخزون التلقائي (إضافة للمستلم وخصم من المرسل) */
+  destinationReceiveTransfer: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        receivedBy: z.string().optional(),
+        notes: z.string().optional(),
+        items: z.array(
+          z.object({
+            code: z.string().min(1),
+            receivedQty: z.number().int().min(0),
+            itemStatus: z.enum(["received_full", "received_partial", "not_received"]),
+            notes: z.string().optional(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const author = ctx.user?.fullName || input.receivedBy || "موظف الفرع المستلم";
+      return await destinationReceiveTransfer({
+        id: input.id,
+        receivedBy: author,
+        notes: input.notes,
+        items: input.items,
+      });
+    }),
+
+  /** رفض طلب التحويل من قبل الأدمن */
+  rejectTransfer: adminProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        adminName: z.string().optional(),
+        reason: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const admin = ctx.user?.fullName || input.adminName || "مدير النظام (الأدمن)";
+      return rejectBranchTransfer({
+        id: input.id,
+        adminName: admin,
+        reason: input.reason,
+      });
+    }),
 });

@@ -9,6 +9,7 @@ import { useAuth } from "@/providers/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { ProductStockHistoryModal } from "@/components/ProductStockHistoryModal";
 import { GoodsReceivingModal } from "@/components/GoodsReceivingModal";
+import { BranchTransferModal } from "@/components/BranchTransferModal";
 
 type Fields = Partial<Pick<Product, "mode" | "qty" | "packs" | "packSize" | "loose" | "orderQty">>;
 
@@ -47,8 +48,24 @@ export default function Home() {
   const [showReset, setShowReset] = useState(false);
   const [showOrder, setShowOrder] = useState(false);
   const [showReceivingModal, setShowReceivingModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
+
+  const transfersQuery = trpc.inventory.listTransfers.useQuery(
+    { branchCode: selectedBranch || session?.branch_code },
+    { refetchInterval: 15000, enabled: !!session }
+  );
+
+  const pendingTransfersCount = useMemo(() => {
+    if (!transfersQuery.data) return 0;
+    const currentBranch = selectedBranch || session?.branch_code;
+    return transfersQuery.data.filter((t) => {
+      if (t.toBranchCode === currentBranch && t.status === "in_transit") return true;
+      if (t.fromBranchCode === currentBranch && t.status === "approved_by_admin") return true;
+      return false;
+    }).length;
+  }, [transfersQuery.data, selectedBranch, session?.branch_code]);
 
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -361,6 +378,23 @@ export default function Home() {
               {orderedItems.length > 0 && (
                 <span className="bg-emerald-600 text-white text-[10px] font-mono px-1.5 py-0.2 rounded-full">
                   {orderedItems.length}
+                </span>
+              )}
+            </button>
+
+            {/* Branch Transfer Workflow Button */}
+            <button
+              id="btn-branch-transfers"
+              onClick={() => setShowTransferModal(true)}
+              className="relative bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-2 rounded-xl font-black transition flex items-center gap-1.5 border border-indigo-200 text-xs md:text-sm shadow-sm"
+              title={lang === "en" ? "Inter-Branch Transfer Requests & Inflow" : "طلب بضاعة من فرع آخر / تحويلات الفروع"}
+            >
+              <i className="ph-bold ph-arrows-left-right text-lg text-indigo-600"></i>
+              <span className="hidden sm:inline">{lang === "en" ? "Branch Transfers" : "طلب من فرع"}</span>
+              <span className="sm:hidden">{lang === "en" ? "Transfers" : "تحويلات"}</span>
+              {pendingTransfersCount > 0 && (
+                <span className="bg-indigo-600 text-white text-[10px] font-mono px-1.5 py-0.2 rounded-full animate-pulse">
+                  {pendingTransfersCount}
                 </span>
               )}
             </button>
@@ -806,6 +840,18 @@ export default function Home() {
           product={historyProduct}
           branchCode={selectedBranch}
           onClose={() => setHistoryProduct(null)}
+        />
+      )}
+
+      {/* Inter-Branch Transfer Modal */}
+      {showTransferModal && (
+        <BranchTransferModal
+          isOpen={showTransferModal}
+          onClose={() => {
+            setShowTransferModal(false);
+            transfersQuery.refetch();
+            utils.inventory.list.invalidate();
+          }}
         />
       )}
     </div>

@@ -352,3 +352,455 @@ export async function resetAllStock() {
     console.warn("DB reset fallback to memory:", err);
   }
 }
+
+// =============================================================================
+// INTER-BRANCH TRANSFERS & MULTI-PARTY WORKFLOW SYSTEM
+// =============================================================================
+
+export interface BranchTransferItem {
+  code: string;
+  nameAr: string;
+  nameEn?: string;
+  unit: string;
+  requestedQty: number;
+  adminApprovedQty?: number;
+  dispatchedQty?: number;
+  receivedQty?: number;
+  itemStatus?: "pending" | "approved" | "dispatched" | "received_full" | "received_partial" | "not_received";
+  notes?: string;
+}
+
+export interface BranchTransferTimelineEntry {
+  timestamp: string;
+  action: string;
+  by: string;
+  role: string;
+  notes?: string;
+}
+
+export interface BranchTransfer {
+  id: string;
+  transferNo: string;
+  fromBranchCode: string;
+  fromBranchName: string;
+  toBranchCode: string;
+  toBranchName: string;
+  requestedBy: string;
+  requestedById: string;
+  requestedAt: string;
+  status:
+    | "pending_admin_initial" // 1. طلب جديد بانتظار موافقة الأدمن الأولى
+    | "approved_by_admin"     // 2. معتمد من الأدمن وبانتظار تجهيز وشحن الفرع المرسل
+    | "dispatched_by_source"  // 3. تم الشحن من الفرع المرسل وبانتظار تأكيد الأدمن
+    | "in_transit"            // 4. معتمد في الطريق وبانتظار استلام الفرع الطالب
+    | "completed"             // 5. تم الاستلام وتحديث المخزون ومؤرشف
+    | "rejected";             // مرفوض
+  adminInitialNotes?: string;
+  adminInitialApprovedAt?: string;
+  adminInitialBy?: string;
+  dispatchedAt?: string;
+  dispatchedBy?: string;
+  dispatchedNotes?: string;
+  adminFinalApprovedAt?: string;
+  adminFinalBy?: string;
+  adminFinalNotes?: string;
+  receivedAt?: string;
+  receivedBy?: string;
+  receivedNotes?: string;
+  items: BranchTransferItem[];
+  timeline: BranchTransferTimelineEntry[];
+}
+
+let memoryTransfers: BranchTransfer[] = [
+  {
+    id: "TR-DEMO-001",
+    transferNo: "TR-2609-001",
+    fromBranchCode: "1010001",
+    fromBranchName: "فرع الرياض الرئيسي - العليا",
+    toBranchCode: "1011125",
+    toBranchName: "1011125 - الرياض فرع الديره",
+    requestedBy: "أحمد عبد العزيز",
+    requestedById: "15763",
+    requestedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    status: "in_transit",
+    adminInitialBy: "مدير النظام (الأدمن)",
+    adminInitialApprovedAt: new Date(Date.now() - 3600000 * 1.5).toISOString(),
+    adminInitialNotes: "تمت الموافقة على التحويل لتغطية عجز عطلة نهاية الأسبوع",
+    dispatchedBy: "سعد القحطاني (فرع العليا)",
+    dispatchedAt: new Date(Date.now() - 3600000 * 1).toISOString(),
+    dispatchedNotes: "تم تجهيز وتغليف الكراتين بالكامل وتحميلها مع مندوب التوصيل",
+    adminFinalBy: "مدير النظام (الأدمن)",
+    adminFinalApprovedAt: new Date(Date.now() - 1800000).toISOString(),
+    adminFinalNotes: "تم اعتماد خروج الشحنة وفي طريقها للفرع المستلم",
+    items: [
+      {
+        code: "13011011",
+        nameAr: "أكواب قهوة وشاي مزدوجة الجدار 10 أونصة",
+        nameEn: "CUPS COFFEE AND TEA CUPS 10OZ",
+        unit: "كرتون 📦",
+        requestedQty: 4,
+        adminApprovedQty: 4,
+        dispatchedQty: 4,
+        receivedQty: 4,
+        itemStatus: "dispatched",
+      },
+      {
+        code: "13011014",
+        nameAr: "أكواب قهوة وشاي مزدوجة الجدار 16 أونصة",
+        nameEn: "CUPS DW COFFEE AND TEA CUPS 16OZ",
+        unit: "باكت 🗂️",
+        requestedQty: 5,
+        adminApprovedQty: 5,
+        dispatchedQty: 4,
+        receivedQty: 4,
+        itemStatus: "dispatched",
+        notes: "تم تجهيز 4 باكيتات فقط حسب المتوفر لدينا",
+      }
+    ],
+    timeline: [
+      {
+        timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+        action: "إنشاء طلب التحويل من الفرع",
+        by: "أحمد عبد العزيز",
+        role: "الفرع الطالب (الديرة)",
+      },
+      {
+        timestamp: new Date(Date.now() - 3600000 * 1.5).toISOString(),
+        action: "موافقة الأدمن المبدئية وإحالة للفرع المصدر للتجهيز",
+        by: "مدير النظام (الأدمن)",
+        role: "الإدارة العامة",
+        notes: "تمت الموافقة على التحويل لتغطية عجز عطلة نهاية الأسبوع",
+      },
+      {
+        timestamp: new Date(Date.now() - 3600000 * 1).toISOString(),
+        action: "تجهيز وشحن الكميات من الفرع المرسل",
+        by: "سعد القحطاني",
+        role: "الفرع المرسل (العليا)",
+        notes: "تم تعديل كمية الصنف 16 أونصة إلى 4 باكيتات للمتوفر",
+      },
+      {
+        timestamp: new Date(Date.now() - 1800000).toISOString(),
+        action: "اعتماد الأدمن النهائي للشحن وترحيلها في الطريق",
+        by: "مدير النظام (الأدمن)",
+        role: "الإدارة العامة",
+      }
+    ]
+  }
+];
+
+export function listBranchTransfers(filter?: { branchCode?: string; status?: string }) {
+  let list = [...memoryTransfers];
+  if (filter?.branchCode) {
+    list = list.filter(
+      (t) => t.fromBranchCode === filter.branchCode || t.toBranchCode === filter.branchCode
+    );
+  }
+  if (filter?.status && filter.status !== "ALL") {
+    list = list.filter((t) => t.status === filter.status);
+  }
+  return list.sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+}
+
+export function createBranchTransfer(input: {
+  fromBranchCode: string;
+  fromBranchName: string;
+  toBranchCode: string;
+  toBranchName: string;
+  requestedBy: string;
+  requestedById: string;
+  items: Array<{
+    code: string;
+    nameAr: string;
+    nameEn?: string;
+    unit: string;
+    requestedQty: number;
+    notes?: string;
+  }>;
+  notes?: string;
+}): BranchTransfer {
+  const nextNum = memoryTransfers.length + 1;
+  const transferNo = `TR-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(nextNum).padStart(3, "0")}`;
+  const now = new Date().toISOString();
+
+  const newTransfer: BranchTransfer = {
+    id: `TR-${Date.now()}`,
+    transferNo,
+    fromBranchCode: input.fromBranchCode,
+    fromBranchName: input.fromBranchName,
+    toBranchCode: input.toBranchCode,
+    toBranchName: input.toBranchName,
+    requestedBy: input.requestedBy,
+    requestedById: input.requestedById,
+    requestedAt: now,
+    status: "pending_admin_initial",
+    items: input.items.map((i) => ({
+      ...i,
+      adminApprovedQty: i.requestedQty,
+      dispatchedQty: i.requestedQty,
+      receivedQty: i.requestedQty,
+      itemStatus: "pending",
+    })),
+    timeline: [
+      {
+        timestamp: now,
+        action: "إنشاء طلب التحويل من الفرع الطالب",
+        by: input.requestedBy,
+        role: `الفرع الطالب (${input.toBranchCode})`,
+        notes: input.notes,
+      },
+    ],
+  };
+
+  memoryTransfers.unshift(newTransfer);
+  return newTransfer;
+}
+
+export function adminInitialApproveTransfer(input: {
+  id: string;
+  adminName: string;
+  notes?: string;
+  items?: Array<{
+    code: string;
+    adminApprovedQty: number;
+  }>;
+}) {
+  const t = memoryTransfers.find((x) => x.id === input.id);
+  if (!t) throw new Error("طلب التحويل غير موجود");
+
+  const now = new Date().toISOString();
+  t.status = "approved_by_admin";
+  t.adminInitialBy = input.adminName;
+  t.adminInitialApprovedAt = now;
+  t.adminInitialNotes = input.notes || "";
+
+  if (input.items && input.items.length > 0) {
+    const map = new Map(input.items.map((i) => [i.code, i.adminApprovedQty]));
+    t.items = t.items.map((item) => {
+      if (map.has(item.code)) {
+        const approved = map.get(item.code)!;
+        return {
+          ...item,
+          adminApprovedQty: approved,
+          dispatchedQty: approved,
+          receivedQty: approved,
+          itemStatus: "approved",
+        };
+      }
+      return item;
+    });
+  }
+
+  t.timeline.push({
+    timestamp: now,
+    action: "موافقة الأدمن المبدئية وتوجيه الطلب للفرع المرسل للتجهيز",
+    by: input.adminName,
+    role: "الإدارة العامة (الأدمن)",
+    notes: input.notes,
+  });
+
+  return t;
+}
+
+export function sourceBranchDispatchTransfer(input: {
+  id: string;
+  employeeName: string;
+  notes?: string;
+  items: Array<{
+    code: string;
+    dispatchedQty: number;
+    notes?: string;
+  }>;
+}) {
+  const t = memoryTransfers.find((x) => x.id === input.id);
+  if (!t) throw new Error("طلب التحويل غير موجود");
+
+  const now = new Date().toISOString();
+  t.status = "dispatched_by_source";
+  t.dispatchedBy = input.employeeName;
+  t.dispatchedAt = now;
+  t.dispatchedNotes = input.notes || "";
+
+  const map = new Map(input.items.map((i) => [i.code, i]));
+  t.items = t.items.map((item) => {
+    if (map.has(item.code)) {
+      const dispatched = map.get(item.code)!;
+      return {
+        ...item,
+        dispatchedQty: dispatched.dispatchedQty,
+        receivedQty: dispatched.dispatchedQty,
+        itemStatus: "dispatched",
+        notes: dispatched.notes || item.notes,
+      };
+    }
+    return item;
+  });
+
+  t.timeline.push({
+    timestamp: now,
+    action: "تجهيز وشحن البضاعة من الفرع المرسل وإحالتها لتأكيد الأدمن",
+    by: input.employeeName,
+    role: `الفرع المرسل (${t.fromBranchCode})`,
+    notes: input.notes,
+  });
+
+  return t;
+}
+
+export function adminFinalApproveTransfer(input: {
+  id: string;
+  adminName: string;
+  notes?: string;
+}) {
+  const t = memoryTransfers.find((x) => x.id === input.id);
+  if (!t) throw new Error("طلب التحويل غير موجود");
+
+  const now = new Date().toISOString();
+  t.status = "in_transit";
+  t.adminFinalBy = input.adminName;
+  t.adminFinalApprovedAt = now;
+  t.adminFinalNotes = input.notes || "";
+
+  t.timeline.push({
+    timestamp: now,
+    action: "تأكيد الأدمن النهائي للشحن وترحيل الشحنة في الطريق",
+    by: input.adminName,
+    role: "الإدارة العامة (الأدمن)",
+    notes: input.notes,
+  });
+
+  return t;
+}
+
+export async function destinationReceiveTransfer(input: {
+  id: string;
+  receivedBy: string;
+  notes?: string;
+  items: Array<{
+    code: string;
+    receivedQty: number;
+    itemStatus: "received_full" | "received_partial" | "not_received";
+    notes?: string;
+  }>;
+}) {
+  const t = memoryTransfers.find((x) => x.id === input.id);
+  if (!t) throw new Error("طلب التحويل غير موجود");
+
+  const now = new Date().toISOString();
+  t.status = "completed";
+  t.receivedBy = input.receivedBy;
+  t.receivedAt = now;
+  t.receivedNotes = input.notes || "";
+
+  const map = new Map(input.items.map((i) => [i.code, i]));
+  t.items = t.items.map((item) => {
+    if (map.has(item.code)) {
+      const rec = map.get(item.code)!;
+      return {
+        ...item,
+        receivedQty: rec.receivedQty,
+        itemStatus: rec.itemStatus,
+        notes: rec.notes || item.notes,
+      };
+    }
+    return item;
+  });
+
+  t.timeline.push({
+    timestamp: now,
+    action: "فحص وتأكيد الاستلام النهائي من الفرع الطالب وتوريد المخزون",
+    by: input.receivedBy,
+    role: `الفرع الطالب (${t.toBranchCode})`,
+    notes: input.notes,
+  });
+
+  // STOCK INVENTORY MOVEMENTS:
+  // 1. Inflow to Destination Branch (+)
+  // 2. Outflow from Source Branch (-)
+  for (const item of t.items) {
+    const receivedAmount = item.receivedQty || 0;
+    const dispatchedAmount = item.dispatchedQty || 0;
+    const prod = memoryProducts.find((p) => p.code === item.code);
+
+    if (prod && receivedAmount > 0) {
+      const prev = prod.qty ?? 0;
+      const next = prev + receivedAmount;
+      prod.qty = next;
+      prod.updatedAt = new Date();
+
+      const inflowLog: StockLog = {
+        id: `LOG-INFLOW-${Date.now()}-${prod.id}`,
+        productId: prod.id,
+        productCode: prod.code,
+        productNameAr: prod.nameAr,
+        productNameEn: prod.nameEn || undefined,
+        branchCode: t.toBranchCode,
+        author: input.receivedBy,
+        timestamp: now,
+        action: "add",
+        field: "qty",
+        prevQty: prev,
+        newQty: next,
+        delta: receivedAmount,
+        changeType: "increase",
+        unit: item.unit,
+        note: `تحويل وارد من فرع ${t.fromBranchName} (#${t.transferNo})`,
+      };
+      prod.lastStockUpdate = inflowLog;
+      stockLogs.unshift(inflowLog);
+
+      const outflowLog: StockLog = {
+        id: `LOG-OUTFLOW-${Date.now()}-${prod.id}`,
+        productId: prod.id,
+        productCode: prod.code,
+        productNameAr: prod.nameAr,
+        productNameEn: prod.nameEn || undefined,
+        branchCode: t.fromBranchCode,
+        author: t.dispatchedBy || "موظف الفرع المرسل",
+        timestamp: now,
+        action: "subtract",
+        field: "qty",
+        prevQty: Math.max(0, prev + dispatchedAmount),
+        newQty: prev,
+        delta: dispatchedAmount,
+        changeType: "decrease",
+        unit: item.unit,
+        note: `تحويل صادر إلى فرع ${t.toBranchName} (#${t.transferNo})`,
+      };
+      stockLogs.unshift(outflowLog);
+
+      if (stockLogs.length > 500) stockLogs.splice(500);
+
+      try {
+        await getDb().update(products).set({ qty: next, updatedAt: new Date() }).where(eq(products.id, prod.id));
+      } catch (err) {
+        console.warn("DB update fallback during transfer intake:", err);
+      }
+    }
+  }
+
+  return t;
+}
+
+export function rejectBranchTransfer(input: {
+  id: string;
+  adminName: string;
+  reason: string;
+}) {
+  const t = memoryTransfers.find((x) => x.id === input.id);
+  if (!t) throw new Error("طلب التحويل غير موجود");
+
+  const now = new Date().toISOString();
+  t.status = "rejected";
+  t.adminInitialBy = input.adminName;
+  t.adminInitialNotes = input.reason;
+
+  t.timeline.push({
+    timestamp: now,
+    action: "رفض طلب التحويل من قبل الإدارة",
+    by: input.adminName,
+    role: "الإدارة العامة (الأدمن)",
+    notes: input.reason,
+  });
+
+  return t;
+}

@@ -9,7 +9,7 @@ import { AdminRequestsPanel } from "@/components/AdminRequestsPanel";
 import { ProductStockHistoryModal, formatStockDateDetails } from "@/components/ProductStockHistoryModal";
 import { getMeta } from "@/lib/catMeta";
 
-type AdminMenuTab = "products" | "branches" | "employees" | "requests" | "submissions";
+type AdminMenuTab = "products" | "branches" | "employees" | "requests" | "submissions" | "transfers";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -27,6 +27,13 @@ export default function Admin() {
   // Selected Sidebar Tab (Default: products or branches)
   const [activeMenu, setActiveMenu] = useState<AdminMenuTab>("products");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Transfers query for sidebar badge
+  const transfersQuery = trpc.inventory.listTransfers.useQuery();
+  const allTransfers = transfersQuery.data ?? [];
+  const pendingTransfersCount = allTransfers.filter(
+    (t) => t.status === "pending_admin_initial" || t.status === "dispatched_by_source"
+  ).length;
 
   // Dynamic counts for sidebar badges
   const [counts, setCounts] = useState({
@@ -147,6 +154,14 @@ export default function Admin() {
       icon: "ph-bell-ringing",
       badge: counts.pendingSubmissions,
       badgeTone: counts.pendingSubmissions > 0 ? "emerald" : "slate",
+    },
+    {
+      id: "transfers",
+      label: lang === "ar" ? "التحويلات بين الفروع" : "Branch Transfers",
+      subLabel: lang === "ar" ? "اعتماد طلبات النقل والأرشيف" : "Approve transfers & archive",
+      icon: "ph-arrows-left-right",
+      badge: pendingTransfersCount > 0 ? pendingTransfersCount : (allTransfers.length || undefined),
+      badgeTone: pendingTransfersCount > 0 ? "orange" : "slate",
     },
   ];
 
@@ -623,6 +638,17 @@ export default function Admin() {
             <div className="animate-in fade-in duration-200">
               <AdminRequestsPanel
                 forcedTab="submissions"
+                hideTabsNav={true}
+                onCountsChange={setCounts}
+              />
+            </div>
+          )}
+
+          {/* 6. Inter-Branch Transfers Section */}
+          {activeMenu === "transfers" && (
+            <div className="animate-in fade-in duration-200">
+              <AdminRequestsPanel
+                forcedTab="transfers"
                 hideTabsNav={true}
                 onCountsChange={setCounts}
               />
