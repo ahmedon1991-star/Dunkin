@@ -117,6 +117,16 @@ export default function Admin() {
               </select>
             </div>
 
+            {/* Enter Branch Button */}
+            <button
+              onClick={() => navigate("/")}
+              title={lang === "en" ? "Enter Selected Branch & Inventory" : "دخول الفرع والجرد"}
+              className="rounded-xl bg-emerald-600 px-3.5 py-2.5 font-bold text-white shadow-md shadow-emerald-600/30 hover:bg-emerald-700 text-xs md:text-sm flex items-center gap-1.5 transition"
+            >
+              <i className="ph-bold ph-storefront text-base"></i>
+              <span>{lang === "ar" ? "دخول الفرع" : "Enter Branch"}</span>
+            </button>
+
             {/* Language toggle */}
             <button
               onClick={toggleLang}
@@ -194,10 +204,23 @@ export default function Admin() {
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-slate-900 truncate">{getBranchName(branch.branch_code, branch.branch_name)}</p>
                     <p className="text-xs font-mono text-slate-500 mt-0.5">#{branch.branch_code}</p>
-                    <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
-                      {lang === "ar" ? "نشط" : "Active"}
-                    </span>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                        {lang === "ar" ? "نشط" : "Active"}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setSelectedBranch(branch.branch_code);
+                          navigate("/");
+                        }}
+                        className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black transition flex items-center gap-1 shadow-sm"
+                        title={lang === "ar" ? "دخول الفرع وشاشة الجرد" : "Enter Branch & Inventory"}
+                      >
+                        <i className="ph-bold ph-sign-in text-xs"></i>
+                        <span>{lang === "ar" ? "دخول الفرع" : "Enter"}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))

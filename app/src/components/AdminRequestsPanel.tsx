@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { useAuth, type EmployeeRequest, type EmployeeRecord, type BranchRecord, type AdminSubmission } from "@/providers/AuthContext";
 import { useLanguage } from "@/providers/LanguageContext";
 import { trpc } from "@/providers/trpc";
 
 export function AdminRequestsPanel() {
+  const navigate = useNavigate();
   const {
     fetchPendingRequests,
     fetchEmployeesList,
@@ -648,16 +650,19 @@ export function AdminRequestsPanel() {
                       <button
                         onClick={() => {
                           setSelectedBranch(b.branch_code);
-                          notify(lang === "en" ? `Selected branch (${bName}) with full 256 products count` : `تم اختيار وعرض منتجات (${bName}) بالعدد الكامل 256 منتج`);
+                          navigate("/");
                         }}
                         className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition flex items-center justify-center gap-1.5 ${
                           isSelected
-                            ? "bg-emerald-600 text-white shadow-sm"
-                            : "bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100"
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                            : "bg-violet-600 hover:bg-violet-700 text-white shadow-sm"
                         }`}
+                        title={lang === "en" ? "Enter Branch & Inventory" : "دخول الفرع وشاشة الجرد"}
                       >
-                        <i className={`ph-bold ${isSelected ? "ph-check-circle" : "ph-arrow-square-out"}`}></i>
-                        {isSelected ? (lang === "en" ? "Current Branch" : "الفرع الحالي") : (lang === "en" ? "Enter Branch" : "دخول الفرع")}
+                        <i className="ph-bold ph-sign-in"></i>
+                        {isSelected
+                          ? (lang === "en" ? "Enter Current Branch" : "دخول الفرع الحالي")
+                          : (lang === "en" ? "Enter Branch" : "دخول الفرع")}
                       </button>
 
                       <button

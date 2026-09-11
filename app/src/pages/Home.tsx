@@ -229,11 +229,6 @@ export default function Home() {
     );
   }
 
-  // Admin users go directly to the admin panel — no catalog access
-  if (session.role === "admin") {
-    navigate("/admin");
-    return null;
-  }
   if (listQuery.isError) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-slate-500">
