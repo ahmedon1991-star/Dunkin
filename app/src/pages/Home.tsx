@@ -1413,17 +1413,16 @@ function ProductCard({
         {/* Product Image preview if available */}
         {p.imageUrl && (
           <div
-            className="mb-2.5 overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 shadow-inner cursor-pointer relative group/img"
+            className="mb-2.5 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-2xs cursor-pointer relative group/img h-28 w-full flex items-center justify-center p-2"
             onClick={() => onOpenHistory(p)}
             title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
           >
             <img
               src={p.imageUrl}
               alt={productName}
-              className="h-24 sm:h-28 w-full object-cover group-hover/img:scale-105 transition duration-300"
+              className="max-h-full max-w-full object-contain group-hover/img:scale-105 transition duration-300"
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition"></div>
           </div>
         )}
 
@@ -1757,8 +1756,31 @@ export function AddProductModal({
               {uploadError && <p className="text-xs font-bold text-red-500">{uploadError}</p>}
             </div>
             {imageUrl.trim() && (
-              <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-                <img src={imageUrl} alt="Product preview" className="h-24 w-full object-cover rounded-lg" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+              <div className="mt-2 rounded-xl border border-slate-200 bg-white p-2.5 flex items-center justify-between gap-3 shadow-2xs">
+                <div className="h-16 w-16 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                  <img
+                    src={imageUrl}
+                    alt="Product preview"
+                    className="max-h-full max-w-full object-contain"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-700 truncate" dir="ltr">{imageUrl}</p>
+                  <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                    <i className="ph-bold ph-check-circle"></i>
+                    <span>{lang === "en" ? "Image attached" : "تم إرفاق الصورة"}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setImageUrl("")}
+                  className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition flex items-center gap-1 shrink-0"
+                  title={lang === "en" ? "Remove image" : "حذف الصورة"}
+                >
+                  <i className="ph-bold ph-trash text-sm"></i>
+                  <span>{lang === "en" ? "Remove" : "حذف"}</span>
+                </button>
               </div>
             )}
           </div>

@@ -508,7 +508,7 @@ export default function Admin() {
                                       <img
                                         src={product.imageUrl}
                                         alt={productName}
-                                        className="h-12 w-12 rounded-xl object-cover shrink-0 border border-slate-200"
+                                        className="h-12 w-12 rounded-xl object-contain bg-white p-0.5 shrink-0 border border-slate-200"
                                       />
                                     ) : (
                                       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400 shrink-0">
