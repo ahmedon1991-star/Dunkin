@@ -98,6 +98,10 @@ export default function Home() {
     },
   });
   const resetMut = trpc.inventory.resetAll.useMutation({
+    onSuccess: () => {
+      notify(lang === "en" ? "All stock quantities reset to zero successfully! 🔄" : "تم تصفير جميع كميات المخزون بنجاح! 🔄");
+      utils.inventory.list.invalidate();
+    },
     onError: () => {
       notify(lang === "en" ? "Failed to reset" : "تعذر التصفير");
       utils.inventory.list.invalidate();
@@ -1113,6 +1117,54 @@ export default function Home() {
             notify(lang === "en" ? "Stock successfully received and updated! 🟢" : "تم استلام البضاعة وتوريد الكميات للمخزون بنجاح! 🟢");
           }}
         />
+      )}
+
+      {/* MODAL: RESET ALL STOCK CONFIRMATION */}
+      {showReset && (
+        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 modal-enter" onClick={() => setShowReset(false)}>
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl relative modal-content-enter p-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+              <i className="ph-bold ph-warning text-3xl"></i>
+            </div>
+            <h3 className="text-xl font-black text-slate-900 mb-2">
+              {lang === "en" ? "Reset All Stock Quantities?" : "تصفير جميع كميات المخزون؟"}
+            </h3>
+            <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+              {lang === "en"
+                ? "This action will reset all product quantities to zero (0) so you can start entering real inventory counts. Are you sure you want to proceed?"
+                : "هذا الإجراء سيقوم بتصفير كميات جميع المنتجات بالكامل (صفر) لكي تبدأ بإدخال كميات الجرد الحقيقية. هل تود المتابعة؟"}
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowReset(false)}
+                disabled={resetMut.isPending}
+                className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                disabled={resetMut.isPending}
+                onClick={() => {
+                  resetMut.mutate(undefined, {
+                    onSuccess: () => {
+                      setShowReset(false);
+                    }
+                  });
+                }}
+                className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black transition flex items-center justify-center gap-2 shadow-lg shadow-red-600/25"
+              >
+                {resetMut.isPending ? (
+                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                ) : (
+                  <i className="ph-bold ph-arrows-counter-clockwise"></i>
+                )}
+                <span>{lang === "en" ? "Yes, Reset All" : "نعم، تصفير الكل"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Employee Auth Modal */}

@@ -146,8 +146,8 @@ export const inventoryRouter = createRouter({
       return { ok: true };
     }),
 
-  /** تصفير المخزون: محمي بأعلى مستوى صلاحية (الأدمن فقط) */
-  resetAll: adminProcedure.mutation(async () => {
+  /** تصفير المخزون: متاح لتصفير المخزون بالكامل للبدء بجرد حقيقي */
+  resetAll: publicQuery.mutation(async () => {
     await resetAllStock();
     return { ok: true };
   }),

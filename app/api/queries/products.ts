@@ -338,16 +338,16 @@ export async function listInventorySnapshots() {
 export async function resetAllStock() {
   memoryProducts = memoryProducts.map((p) => ({
     ...p,
-    qty: null,
-    packs: null,
+    qty: 0,
+    packs: 0,
     packSize: null,
-    loose: null,
+    loose: 0,
     orderQty: null,
   }));
   try {
     await getDb()
       .update(products)
-      .set({ qty: null, packs: null, packSize: null, loose: null, orderQty: null });
+      .set({ qty: 0, packs: 0, packSize: null, loose: 0, orderQty: null });
   } catch (err) {
     console.warn("DB reset fallback to memory:", err);
   }
