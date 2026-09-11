@@ -1,5 +1,5 @@
 import { asc, eq, sql } from "drizzle-orm";
-import { inventorySnapshots, products, type Product } from "@db/schema";
+import { inventorySnapshots, products, type Product, type StockLog } from "@db/schema";
 import { getDb } from "./connection";
 import { seedProducts } from "../../db/seedData";
 
@@ -31,6 +31,9 @@ let memoryProducts: Product[] = seedProducts.map((p, index) => ({
 
 let memorySnapshots: Array<{ id: number; period: "weekly" | "monthly"; capturedAt: Date; data: string }> = [];
 
+const lastStockUpdates: Record<number, StockLog> = {};
+const stockLogs: StockLog[] = [];
+
 export function normalizeOptionalImageUrl(value: string | null | undefined) {
   if (value == null) return null;
   const trimmed = value.trim();
@@ -45,13 +48,22 @@ export async function listProducts(): Promise<Product[]> {
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error("DB Timeout")), 2500))
     ]);
     if (res && res.length > 0) {
-      memoryProducts = res;
-      return res;
+      memoryProducts = res.map((p) => ({
+        ...p,
+        lastStockUpdate: lastStockUpdates[p.id] || null,
+      }));
+      return memoryProducts;
     }
-    return memoryProducts;
+    return memoryProducts.map((p) => ({
+      ...p,
+      lastStockUpdate: lastStockUpdates[p.id] || null,
+    }));
   } catch (err) {
     console.warn("DB connection timeout/error, serving fallback 256 products catalog:", err);
-    return memoryProducts;
+    return memoryProducts.map((p) => ({
+      ...p,
+      lastStockUpdate: lastStockUpdates[p.id] || null,
+    }));
   }
 }
 
@@ -66,13 +78,83 @@ export async function updateProduct(
     orderQty: number | null;
     imageUrl: string | null;
   }>,
+  meta?: {
+    updatedBy?: string;
+    branchCode?: string;
+  }
 ) {
-  memoryProducts = memoryProducts.map((p) => (p.id === id ? { ...p, ...fields, updatedAt: new Date() } : p));
+  const current = memoryProducts.find((p) => p.id === id);
+  if (current) {
+    let changedField: "qty" | "packs" | "loose" | null = null;
+    let prevQty: number | null = null;
+    let newQty: number | null = null;
+
+    if (fields.qty !== undefined && fields.qty !== current.qty) {
+      changedField = "qty";
+      prevQty = current.qty;
+      newQty = fields.qty;
+    } else if (fields.packs !== undefined && fields.packs !== current.packs) {
+      changedField = "packs";
+      prevQty = current.packs;
+      newQty = fields.packs;
+    } else if (fields.loose !== undefined && fields.loose !== current.loose) {
+      changedField = "loose";
+      prevQty = current.loose;
+      newQty = fields.loose;
+    }
+
+    if (changedField && newQty !== null) {
+      const pVal = prevQty ?? 0;
+      const nVal = newQty ?? 0;
+      const delta = nVal - pVal;
+      if (delta !== 0) {
+        const changeType = delta > 0 ? "increase" : "decrease";
+        const log: StockLog = {
+          id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          productId: id,
+          productCode: current.code,
+          productNameAr: current.nameAr,
+          productNameEn: current.nameEn,
+          field: changedField,
+          prevQty,
+          newQty,
+          delta,
+          changeType,
+          updatedBy: meta?.updatedBy || "موظف الفرع",
+          branchCode: meta?.branchCode || "1011125",
+          timestamp: new Date().toISOString(),
+        };
+
+        lastStockUpdates[id] = log;
+        stockLogs.unshift(log);
+        if (stockLogs.length > 500) stockLogs.pop();
+      }
+    }
+  }
+
+  memoryProducts = memoryProducts.map((p) =>
+    p.id === id
+      ? {
+          ...p,
+          ...fields,
+          updatedAt: new Date(),
+          lastStockUpdate: lastStockUpdates[id] ?? p.lastStockUpdate ?? null,
+        }
+      : p
+  );
+
   try {
     await getDb().update(products).set(fields).where(eq(products.id, id));
   } catch (err) {
     console.warn("DB update fallback to memory:", err);
   }
+}
+
+export function getStockLogs(productId?: number): StockLog[] {
+  if (productId != null) {
+    return stockLogs.filter((l) => l.productId === productId);
+  }
+  return stockLogs;
 }
 
 export async function addProduct(input: {

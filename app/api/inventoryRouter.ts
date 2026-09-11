@@ -9,6 +9,7 @@ import {
   saveInventorySnapshot,
   listInventorySnapshots,
   resetAllStock,
+  getStockLogs,
 } from "./queries/products";
 
 const unitCode = z.enum(["CTN", "PKT", "PCS"]);
@@ -31,13 +32,19 @@ export const inventoryRouter = createRouter({
         packSize: z.number().int().min(0).nullable().optional(),
         loose: z.number().int().min(0).nullable().optional(),
         orderQty: z.number().int().min(0).nullable().optional(),
+        updatedBy: z.string().optional(),
+        branchCode: z.string().optional(),
       }),
     )
     .mutation(async ({ input }) => {
-      const { id, ...fields } = input;
-      await updateProduct(id, fields);
+      const { id, updatedBy, branchCode, ...fields } = input;
+      await updateProduct(id, fields, { updatedBy, branchCode });
       return { ok: true };
     }),
+
+  stockLogs: publicQuery
+    .input(z.object({ productId: z.number().optional() }).optional())
+    .query(({ input }) => getStockLogs(input?.productId)),
 
   add: publicQuery
     .input(

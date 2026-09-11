@@ -67,7 +67,25 @@ export const inventoryAuditItems = pgTable("inventory_audit_items", {
   itemNotes: text("item_notes"),
 });
 
-export type Product = typeof products.$inferSelect;
+export interface StockLog {
+  id: string;
+  productId: number;
+  productCode: string;
+  productNameAr: string;
+  productNameEn: string;
+  field: "qty" | "packs" | "loose" | "general";
+  prevQty: number | null;
+  newQty: number | null;
+  delta: number;
+  changeType: "increase" | "decrease" | "set";
+  updatedBy: string;
+  branchCode?: string;
+  timestamp: string;
+}
+
+export type Product = typeof products.$inferSelect & {
+  lastStockUpdate?: StockLog | null;
+};
 export type InventorySnapshot = typeof inventorySnapshots.$inferSelect;
 export type InventoryAudit = typeof inventoryAudits.$inferSelect;
 export type InventoryAuditItem = typeof inventoryAuditItems.$inferSelect;

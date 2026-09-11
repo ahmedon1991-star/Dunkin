@@ -6,6 +6,7 @@ import type { Product } from "@db/schema";
 import { useLanguage } from "@/providers/LanguageContext";
 import { useAuth } from "@/providers/AuthContext";
 import { AdminRequestsPanel } from "@/components/AdminRequestsPanel";
+import { ProductStockHistoryModal, formatStockDateDetails } from "@/components/ProductStockHistoryModal";
 import { getMeta } from "@/lib/catMeta";
 
 type AdminMenuTab = "products" | "branches" | "employees" | "requests" | "submissions";
@@ -39,6 +40,7 @@ export default function Admin() {
   const listQuery = trpc.inventory.list.useQuery(undefined, { refetchOnWindowFocus: false });
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
 
   // Search & Category filter states for Products
   const [search, setSearch] = useState("");
@@ -507,8 +509,34 @@ export default function Admin() {
                                         <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                                           {unitLabel}
                                         </span>
+                                        {product.lastStockUpdate && (
+                                          <button
+                                            onClick={() => setHistoryProduct(product)}
+                                            className={`text-[10.5px] font-black px-2 py-0.5 rounded-md border transition flex items-center gap-1 ${
+                                              product.lastStockUpdate.changeType === "increase"
+                                                ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                                                : "bg-red-50 text-red-800 border-red-200 hover:bg-red-100"
+                                            }`}
+                                            title={lang === "ar" ? "اضغط لمعاينة تفاصيل آخر تحديث" : "Click to view latest update details"}
+                                          >
+                                            <i className={`ph-bold ${product.lastStockUpdate.changeType === "increase" ? "ph-trend-up" : "ph-trend-down"}`}></i>
+                                            <span>
+                                              {product.lastStockUpdate.changeType === "increase" ? `+${product.lastStockUpdate.delta}` : product.lastStockUpdate.delta}
+                                            </span>
+                                            <span className="text-[10px] opacity-75 font-normal">
+                                              ({formatStockDateDetails(product.lastStockUpdate.timestamp, lang as "ar" | "en").dayName}{" "}
+                                              {formatStockDateDetails(product.lastStockUpdate.timestamp, lang as "ar" | "en").time})
+                                            </span>
+                                          </button>
+                                        )}
                                       </div>
-                                      <p className="font-black text-slate-900 text-sm mt-0.5 truncate">{productName}</p>
+                                      <p
+                                        onClick={() => setHistoryProduct(product)}
+                                        className="font-black text-slate-900 text-sm mt-0.5 truncate cursor-pointer hover:text-blue-600 transition"
+                                        title={lang === "ar" ? "اضغط لمعاينة سجل حركات الصنف" : "Click to view stock history"}
+                                      >
+                                        {productName}
+                                      </p>
                                       {secondaryName && (
                                         <p className="text-xs text-slate-400 truncate">{secondaryName}</p>
                                       )}
@@ -517,6 +545,14 @@ export default function Admin() {
 
                                   {/* Actions */}
                                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                    <button
+                                      onClick={() => setHistoryProduct(product)}
+                                      className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition flex items-center gap-1 shadow-sm"
+                                      title={lang === "ar" ? "معاينة تفاصيل آخر تحديث وسجل الحركات" : "View latest stock update & history"}
+                                    >
+                                      <i className="ph-bold ph-clock-counter-clockwise"></i>
+                                      <span>{lang === "ar" ? "آخر تحديث" : "Stock Log"}</span>
+                                    </button>
                                     <button
                                       onClick={() => setEditing(product)}
                                       className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition flex items-center gap-1 shadow-sm"
@@ -615,6 +651,15 @@ export default function Admin() {
           onClose={() => setEditing(null)}
           onSave={(input) => editMut.mutate({ id: editing.id, ...input })}
           isLoading={editMut.isPending}
+        />
+      )}
+
+      {/* Product Stock History & Latest Update Modal */}
+      {historyProduct && (
+        <ProductStockHistoryModal
+          product={historyProduct}
+          branchCode={selectedBranch}
+          onClose={() => setHistoryProduct(null)}
         />
       )}
     </div>

@@ -7,6 +7,7 @@ import type { Product } from "@db/schema";
 import { useLanguage } from "@/providers/LanguageContext";
 import { useAuth } from "@/providers/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
+import { ProductStockHistoryModal } from "@/components/ProductStockHistoryModal";
 
 type Fields = Partial<Pick<Product, "mode" | "qty" | "packs" | "packSize" | "loose" | "orderQty">>;
 
@@ -29,6 +30,7 @@ export default function Home() {
   const [showReset, setShowReset] = useState(false);
   const [showOrder, setShowOrder] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState(false);
+  const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
 
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -43,6 +45,9 @@ export default function Home() {
   }, [listQuery.data]);
 
   const updateMut = trpc.inventory.update.useMutation({
+    onSuccess: () => {
+      utils.inventory.list.invalidate();
+    },
     onError: () => {
       notify(lang === "en" ? "Failed to save, check connection" : "تعذر الحفظ، تحقق من الاتصال");
       utils.inventory.list.invalidate();
@@ -66,8 +71,9 @@ export default function Home() {
   // Debounce direct typing; step buttons save immediately
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const patch = (id: number, fields: Fields, debounce = false) => {
+    const empName = session?.full_name || (session?.employee_id ? `موظف #${session.employee_id}` : "موظف الفرع");
     setItems((prev) => prev.map((p) => (p.id === id ? { ...p, ...fields } : p)));
-    const run = () => updateMut.mutate({ id, ...fields });
+    const run = () => updateMut.mutate({ id, updatedBy: empName, branchCode: selectedBranch, ...fields });
     const key = `${id}:${Object.keys(fields).join(",")}`;
     if (debounce) {
       clearTimeout(debounceTimers.current.get(key));
@@ -453,6 +459,7 @@ export default function Home() {
                   navigator.clipboard.writeText(code);
                   notify((lang === 'en' ? 'Code copied: ' : 'تم نسخ الكود: ') + code);
                 }}
+                onOpenHistory={(prod) => setHistoryProduct(prod)}
               />
             ))}
           </div>
@@ -648,6 +655,15 @@ export default function Home() {
 
       {/* Employee Auth Modal */}
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+
+      {/* Product Stock History & Last Update Modal */}
+      {historyProduct && (
+        <ProductStockHistoryModal
+          product={historyProduct}
+          branchCode={selectedBranch}
+          onClose={() => setHistoryProduct(null)}
+        />
+      )}
     </div>
   );
 }
@@ -673,12 +689,14 @@ function ProductCard({
   onStep,
   onOrder,
   onCopyCode,
+  onOpenHistory,
 }: {
   p: Product;
   onPatch: (id: number, fields: Fields, debounce?: boolean) => void;
   onStep: (p: Product, field: "qty" | "packs" | "loose", change: number) => void;
   onOrder: (id: number) => void;
   onCopyCode: (code: string) => void;
+  onOpenHistory: (p: Product) => void;
 }) {
   const { lang, getProductName, getUnitName, t } = useLanguage();
   const meta = getMeta(p.category);
@@ -740,7 +758,11 @@ function ProductCard({
     <div className={`rounded-2xl p-3.5 md:p-4 border transition-all hover:shadow-lg group flex flex-col justify-between h-full ${meta.color} hover:border-blue-500/50 relative`}>
       <div>
         {p.imageUrl && (
-          <div className="mb-3 overflow-hidden rounded-2xl border border-black/10 bg-white/80 shadow-sm">
+          <div
+            className="mb-3 overflow-hidden rounded-2xl border border-black/10 bg-white/80 shadow-sm cursor-pointer hover:opacity-95 transition"
+            onClick={() => onOpenHistory(p)}
+            title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
+          >
             <img src={p.imageUrl} alt={productName} className="h-28 w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           </div>
         )}
@@ -771,11 +793,57 @@ function ProductCard({
           </div>
         </div>
 
-        {/* CRITICAL BOLD PRODUCT NAME REQUIREMENT */}
-        <h4 className="text-[15px] font-extrabold mb-0.5 leading-snug text-slate-900 font-bold">{productName}</h4>
-        <p className="text-[11px] font-sans font-semibold opacity-70 leading-tight line-clamp-1 mb-3">
-          {secondaryName}
-        </p>
+        {/* CRITICAL BOLD PRODUCT NAME REQUIREMENT - Clickable for stock history */}
+        <div
+          className="cursor-pointer group/title"
+          onClick={() => onOpenHistory(p)}
+          title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
+        >
+          <h4 className="text-[15px] font-extrabold mb-0.5 leading-snug text-slate-900 group-hover/title:text-blue-600 transition flex items-center justify-between gap-1">
+            <span>{productName}</span>
+            <i className="ph-bold ph-info text-slate-400 group-hover/title:text-blue-600 text-sm shrink-0"></i>
+          </h4>
+          <p className="text-[11px] font-sans font-semibold opacity-70 leading-tight line-clamp-1 mb-2">
+            {secondaryName}
+          </p>
+        </div>
+
+        {/* Latest Stock Update Indicator Pill */}
+        {p.lastStockUpdate ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenHistory(p);
+            }}
+            className="w-full mb-2.5 flex items-center justify-between text-[10.5px] font-bold px-2.5 py-1.5 rounded-xl bg-white/90 hover:bg-white text-slate-700 transition border border-black/10 shadow-sm"
+            title={lang === "en" ? "Click to view full stock update details & history" : "اضغط لمعاينة تفاصيل آخر تحديث وسجل الحركات"}
+          >
+            <span className="flex items-center gap-1 text-slate-500">
+              <i className="ph-bold ph-clock text-blue-600"></i>
+              <span>{lang === "en" ? "Last Update:" : "آخر تحديث:"}</span>
+            </span>
+            <span className={`font-black ${p.lastStockUpdate.changeType === "increase" ? "text-emerald-700" : "text-red-600"}`}>
+              {p.lastStockUpdate.changeType === "increase" ? `+${p.lastStockUpdate.delta}` : p.lastStockUpdate.delta} {unitName}
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenHistory(p);
+            }}
+            className="w-full mb-2.5 flex items-center justify-between text-[10px] font-bold px-2 py-1 rounded-xl bg-black/5 hover:bg-black/10 text-slate-500 transition"
+            title={lang === "en" ? "Click to view stock history" : "اضغط لمعاينة سجل حركات الصنف"}
+          >
+            <span className="flex items-center gap-1">
+              <i className="ph-bold ph-clock-counter-clockwise text-slate-400"></i>
+              <span>{lang === "en" ? "Stock History" : "سجل الحركات"}</span>
+            </span>
+            <span className="text-blue-600">{lang === "en" ? "Details ❯" : "التفاصيل ❯"}</span>
+          </button>
+        )}
       </div>
 
       <div className="mt-auto space-y-2 pt-2 border-t border-black/5">
