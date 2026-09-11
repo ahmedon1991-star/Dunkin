@@ -1278,15 +1278,13 @@ function SubmissionDetailsModal({
                         <td className="p-3 font-mono text-slate-600">{item.systemQty ?? "—"}</td>
                         <td className="p-3 font-mono text-slate-900 font-black">{item.actualQty ?? "—"}</td>
                         <td className="p-3 font-mono">
-                          {item.diff == null ? (
-                            "—"
-                          ) : item.diff === 0 ? (
-                            <span className="text-slate-400">0</span>
-                          ) : item.diff > 0 ? (
-                            <span className="text-emerald-600 font-black">+{item.diff}</span>
-                          ) : (
-                            <span className="text-red-600 font-black">{item.diff}</span>
-                          )}
+                          {(() => {
+                            const diffVal = item.diff ?? (item.actualQty != null && item.systemQty != null ? item.actualQty - item.systemQty : null);
+                            if (diffVal == null) return "—";
+                            if (diffVal === 0) return <span className="text-slate-400">0</span>;
+                            if (diffVal > 0) return <span className="text-emerald-600 font-black">+{diffVal}</span>;
+                            return <span className="text-red-600 font-black">{diffVal}</span>;
+                          })()}
                         </td>
                       </>
                     )}

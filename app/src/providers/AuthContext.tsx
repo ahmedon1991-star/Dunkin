@@ -58,6 +58,7 @@ export interface AdminSubmission {
       qty?: number;
       systemQty?: number;
       actualQty?: number;
+      diff?: number;
       unit?: string;
       notes?: string;
     }>;
