@@ -10,6 +10,7 @@ import {
   listInventorySnapshots,
   resetAllStock,
   getStockLogs,
+  receiveOrderItems,
 } from "./queries/products";
 
 const unitCode = z.enum(["CTN", "PKT", "PCS"]);
@@ -45,6 +46,36 @@ export const inventoryRouter = createRouter({
       const branch = ctx.user?.branchCode || branchCode || "1011125";
       await updateProduct(id, fields, { updatedBy: author, branchCode: branch });
       return { ok: true };
+    }),
+
+  /** استلام البضائع والطلبيات وتوريدها للمخزون */
+  receiveOrder: protectedProcedure
+    .input(
+      z.object({
+        branchCode: z.string().optional(),
+        receivedBy: z.string().optional(),
+        submissionId: z.string().optional(),
+        items: z.array(
+          z.object({
+            productId: z.number().optional(),
+            productCode: z.string().min(1),
+            orderedQty: z.number().int().min(0),
+            receivedQty: z.number().int().min(0),
+            status: z.enum(["received_full", "received_partial", "not_received"]),
+            notes: z.string().nullable().optional(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const author = ctx.user?.fullName || input.receivedBy || "موظف الفرع";
+      const branch = ctx.user?.branchCode || input.branchCode || "1011125";
+      const res = await receiveOrderItems(input.items, {
+        receivedBy: author,
+        branchCode: branch,
+        submissionId: input.submissionId,
+      });
+      return res;
     }),
 
   stockLogs: publicQuery

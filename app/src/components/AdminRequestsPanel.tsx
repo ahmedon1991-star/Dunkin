@@ -4,6 +4,7 @@ import { useAuth, type EmployeeRequest, type EmployeeRecord, type BranchRecord, 
 import { useLanguage } from "@/providers/LanguageContext";
 import { trpc } from "@/providers/trpc";
 import { generateAuditPdf } from "@/lib/auditPdfGenerator";
+import { GoodsReceivingModal } from "@/components/GoodsReceivingModal";
 
 export interface AdminRequestsPanelProps {
   forcedTab?: "requests" | "submissions" | "employees" | "branches";
@@ -43,6 +44,7 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
   const [branches, setBranches] = useState<BranchRecord[]>([]);
   const [submissions, setSubmissions] = useState<AdminSubmission[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<AdminSubmission | null>(null);
+  const [receivingSubmission, setReceivingSubmission] = useState<AdminSubmission | null>(null);
   const [subFilter, setSubFilter] = useState<"ALL" | "cargo_order" | "audit">("ALL");
 
   const [activeTab, setActiveTab] = useState<"requests" | "submissions" | "employees" | "branches">("submissions");
@@ -901,6 +903,30 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
           onMarkReviewed={(id) => {
             handleToggleSubmissionStatus(id, "pending");
           }}
+          setReceivingSubmission={setReceivingSubmission}
+        />
+      )}
+
+      {/* Modal: Goods Receiving & Stock Inflow (Admin Triggered) */}
+      {receivingSubmission && receivingSubmission.details.items && (
+        <GoodsReceivingModal
+          isOpen={!!receivingSubmission}
+          onClose={() => setReceivingSubmission(null)}
+          submissionId={receivingSubmission.id}
+          orderTitle={receivingSubmission.title}
+          orderItems={receivingSubmission.details.items.map((item, idx) => ({
+            id: idx + 1,
+            code: item.code,
+            nameAr: item.nameAr,
+            nameEn: item.nameEn,
+            orderQty: item.qty ?? 1,
+            unitLabel: item.unit,
+          }))}
+          onSuccess={() => {
+            handleToggleSubmissionStatus(receivingSubmission.id, "pending");
+            setToast(lang === "en" ? "Stock intake confirmed & updated successfully!" : "تم تأكيد الاستلام وتوريد الكميات للمخزون بنجاح!");
+            setTimeout(() => setToast(null), 3000);
+          }}
         />
       )}
 
@@ -1327,10 +1353,12 @@ function SubmissionDetailsModal({
   submission,
   onClose,
   onMarkReviewed,
+  setReceivingSubmission,
 }: {
   submission: AdminSubmission;
   onClose: () => void;
   onMarkReviewed: (id: string) => void;
+  setReceivingSubmission?: (sub: AdminSubmission | null) => void;
 }) {
   const { lang, getBranchName, getEmployeeName } = useLanguage();
 
@@ -1528,13 +1556,25 @@ function SubmissionDetailsModal({
 
         <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
           {submission.type === "cargo_order" ? (
-            <button
-              onClick={copyOrder}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl transition text-xs flex items-center gap-1.5 shadow-md"
-            >
-              <i className="ph-bold ph-copy"></i>
-              {lang === "en" ? "Copy Order Text" : "نسخ نص الطلب"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={copyOrder}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl transition text-xs flex items-center gap-1.5 shadow-md"
+              >
+                <i className="ph-bold ph-copy"></i>
+                {lang === "en" ? "Copy Order Text" : "نسخ نص الطلب"}
+              </button>
+              <button
+                onClick={() => {
+                  setReceivingSubmission(submission);
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-xl transition text-xs flex items-center gap-1.5 shadow-md"
+                title={lang === "en" ? "Receive and intake goods into live stock" : "استلام البضاعة وتوريد الكميات للمخزون"}
+              >
+                <i className="ph-bold ph-package-receive text-base"></i>
+                {lang === "en" ? "Receive & Intake 📥" : "استلام وتوريد للمخزون 📥"}
+              </button>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <button

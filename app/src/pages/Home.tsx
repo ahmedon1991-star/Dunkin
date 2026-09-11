@@ -8,6 +8,7 @@ import { useLanguage } from "@/providers/LanguageContext";
 import { useAuth } from "@/providers/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { ProductStockHistoryModal } from "@/components/ProductStockHistoryModal";
+import { GoodsReceivingModal } from "@/components/GoodsReceivingModal";
 
 type Fields = Partial<Pick<Product, "mode" | "qty" | "packs" | "packSize" | "loose" | "orderQty">>;
 
@@ -27,8 +28,25 @@ export default function Home() {
 
   const [promptId, setPromptId] = useState<number | null>(null);
   const [promptQty, setPromptQty] = useState("");
+  const [promptUnit, setPromptUnit] = useState<"CTN" | "PKT" | "PCS">("CTN");
+  const [orderUnits, setOrderUnits] = useState<Record<number, "CTN" | "PKT" | "PCS">>(() => {
+    try {
+      const saved = localStorage.getItem("dunkin_order_units");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("dunkin_order_units", JSON.stringify(orderUnits));
+    } catch {}
+  }, [orderUnits]);
+
   const [showReset, setShowReset] = useState(false);
   const [showOrder, setShowOrder] = useState(false);
+  const [showReceivingModal, setShowReceivingModal] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
 
@@ -38,6 +56,14 @@ export default function Home() {
     setToast(msg);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2500);
+  };
+
+  const getSelectedOrderUnitLabel = (id: number, fallbackUnitCode?: string, fallbackUnitLabel?: string) => {
+    const u = orderUnits[id];
+    if (u === "CTN") return lang === "en" ? "Carton 📦" : "كرتون 📦";
+    if (u === "PKT") return lang === "en" ? "Packet 🗂️" : "باكت 🗂️";
+    if (u === "PCS") return lang === "en" ? "Piece 낱" : "حبة 낱";
+    return getUnitName(fallbackUnitCode, fallbackUnitLabel);
   };
 
   useEffect(() => {
@@ -152,7 +178,7 @@ export default function Home() {
           nameAr: p.nameAr,
           nameEn: p.nameEn ?? undefined,
           qty: p.orderQty ?? 0,
-          unit: getUnitName(p.unitCode, p.unitLabel),
+          unit: getSelectedOrderUnitLabel(p.id, p.unitCode, p.unitLabel),
         })),
       },
     });
@@ -169,7 +195,7 @@ export default function Home() {
     let text = lang === "en" ? "📋 Next Day Cargo Order List:\n\n" : "📋 قائمة طلبات بضاعة الغد:\n\n";
     orderedItems.forEach((p, i) => {
       const pName = getProductName(p);
-      const uName = getUnitName(p.unitCode, p.unitLabel);
+      const uName = getSelectedOrderUnitLabel(p.id, p.unitCode, p.unitLabel);
       text += `${i + 1}. [${p.code}] ${pName}\n   👈 ${t("requestedQty")}: ${p.orderQty} (${uName})\n\n`;
     });
     if (navigator.clipboard && window.isSecureContext) {
@@ -186,7 +212,7 @@ export default function Home() {
       notify(t("orderListEmpty"));
       return;
     }
-    const rows = orderedItems.map((p, i) => `<tr><td>${i + 1}</td><td>${p.code}</td><td><b>${getProductName(p)}</b></td><td>${p.orderQty} ${p.unitLabel}</td></tr>`).join("");
+    const rows = orderedItems.map((p, i) => `<tr><td>${i + 1}</td><td>${p.code}</td><td><b>${getProductName(p)}</b></td><td>${p.orderQty} ${getSelectedOrderUnitLabel(p.id, p.unitCode, p.unitLabel)}</td></tr>`).join("");
     const printWindow = window.open("", "_blank", "width=900,height=700");
     if (!printWindow) {
       notify(lang === "en" ? "Allow popups to generate PDF" : "اسمح بالنوافذ المنبثقة لإنشاء ملف PDF");
@@ -311,6 +337,29 @@ export default function Home() {
               <i className="ph-bold ph-shopping-cart text-lg"></i> <span className="hidden sm:inline">{t("orderList")}</span>
               {orderedItems.length > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black">
+                  {orderedItems.length}
+                </span>
+              )}
+            </button>
+
+            {/* Goods Receiving & Stock Inflow Button */}
+            <button
+              id="btn-goods-receiving"
+              onClick={() => {
+                if (orderedItems.length === 0) {
+                  notify(lang === "en" ? "No pending ordered products to receive. Add items to order first or select products!" : "لا توجد بضاعة في قائمة الطلبات لاستلامها حالياً! حدد كميات الطلب أولاً.");
+                  setShowOrder(true);
+                } else {
+                  setShowReceivingModal(true);
+                }
+              }}
+              className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-3 py-2 rounded-xl font-black transition flex items-center gap-1.5 border border-emerald-300 text-xs md:text-sm shadow-sm"
+              title={lang === "en" ? "Receive and Confirm Delivery into Stock" : "استلام المنتجات وتوريد المخزون"}
+            >
+              <i className="ph-bold ph-package-receive text-lg text-emerald-600"></i>
+              <span>{lang === "en" ? "Receive Goods" : "استلام المنتجات"}</span>
+              {orderedItems.length > 0 && (
+                <span className="bg-emerald-600 text-white text-[10px] font-mono px-1.5 py-0.2 rounded-full">
                   {orderedItems.length}
                 </span>
               )}
@@ -448,11 +497,13 @@ export default function Home() {
               <ProductCard
                 key={p.id}
                 p={p}
+                orderUnit={orderUnits[p.id]}
                 onPatch={patch}
                 onStep={stepField}
                 onOrder={(id) => {
                   const prod = items.find((x) => x.id === id);
                   setPromptQty(prod?.orderQty != null ? String(prod.orderQty) : "");
+                  setPromptUnit(orderUnits[id] || (prod?.unitCode as any) || "CTN");
                   setPromptId(id);
                 }}
                 onCopyCode={(code) => {
@@ -467,20 +518,71 @@ export default function Home() {
       </main>
 
 
-      {/* MODAL: ORDER QTY PROMPT */}
+      {/* MODAL: ORDER QTY & UNIT PROMPT */}
       {promptProd && (
         <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 modal-enter" onClick={() => setPromptId(null)}>
           <div className="bg-white rounded-3xl max-w-sm w-full shadow-2xl relative modal-content-enter p-6 text-center" onClick={(e) => e.stopPropagation()}>
-            <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
               <i className="ph-bold ph-shopping-cart text-2xl"></i>
             </div>
-            <h3 className="text-lg font-extrabold text-slate-800 mb-1">{getProductName(promptProd)}</h3>
-            <p className="text-slate-400 text-xs mb-4">
-              {lang === "en" ? "Unit:" : "الوحدة:"} {getUnitName(promptProd.unitCode, promptProd.unitLabel)} (#{promptProd.code})
+            <h3 className="text-lg font-black text-slate-900 mb-1 leading-snug">{getProductName(promptProd)}</h3>
+            <p className="text-slate-400 text-xs mb-3 font-mono">
+              #{promptProd.code} • {lang === "en" ? "Catalog Unit:" : "الوحدة الأساسية:"} {getUnitName(promptProd.unitCode, promptProd.unitLabel)}
             </p>
-            <div className="mb-5">
-              <label className="block text-xs font-bold text-slate-700 mb-2">
-                {lang === "en" ? "Enter quantity to order:" : "أدخل الكمية المراد طلبها:"}
+
+            {/* UNIT SELECTOR: كرتون / باكت / حبة */}
+            <div className="mb-4 text-right" dir={lang === "ar" ? "rtl" : "ltr"}>
+              <label className="block text-xs font-black text-slate-700 mb-2">
+                {lang === "en" ? "Choose Order Unit:" : "اختر وحدة الطلب (كرتون / باكت / حبة):"}
+              </label>
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setPromptUnit("CTN")}
+                  className={`py-2 px-2 rounded-xl text-xs font-black transition flex flex-col items-center justify-center gap-0.5 ${
+                    promptUnit === "CTN"
+                      ? "bg-white text-blue-700 shadow-md shadow-blue-500/10 border border-blue-200"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  }`}
+                >
+                  <i className="ph-bold ph-package text-base"></i>
+                  <span>{lang === "en" ? "Carton" : "كرتون"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPromptUnit("PKT")}
+                  className={`py-2 px-2 rounded-xl text-xs font-black transition flex flex-col items-center justify-center gap-0.5 ${
+                    promptUnit === "PKT"
+                      ? "bg-white text-amber-700 shadow-md shadow-amber-500/10 border border-amber-200"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  }`}
+                >
+                  <i className="ph-bold ph-squares-four text-base"></i>
+                  <span>{lang === "en" ? "Packet" : "باكت"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPromptUnit("PCS")}
+                  className={`py-2 px-2 rounded-xl text-xs font-black transition flex flex-col items-center justify-center gap-0.5 ${
+                    promptUnit === "PCS"
+                      ? "bg-white text-emerald-700 shadow-md shadow-emerald-500/10 border border-emerald-200"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  }`}
+                >
+                  <i className="ph-bold ph-circle text-base"></i>
+                  <span>{lang === "en" ? "Piece / Loose" : "حبة / مفرط"}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-5 text-right" dir={lang === "ar" ? "rtl" : "ltr"}>
+              <label className="block text-xs font-black text-slate-700 mb-1.5 flex items-center justify-between">
+                <span>{lang === "en" ? "Quantity to Order:" : "الكمية المطلوبة:"}</span>
+                <span className="text-[11px] font-bold text-blue-600">
+                  {promptUnit === "CTN" ? (lang === "en" ? "in Cartons" : "بالكرتون 📦") : promptUnit === "PKT" ? (lang === "en" ? "in Packets" : "بالباكت 🗂️") : (lang === "en" ? "in Pieces" : "بالحبة 낱")}
+                </span>
               </label>
               <input
                 type="number"
@@ -490,9 +592,10 @@ export default function Home() {
                 onChange={(e) => setPromptQty(e.target.value)}
                 onFocus={(e) => e.target.select()}
                 placeholder={lang === "en" ? "e.g. 3" : "مثال: 3"}
-                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-center text-xl font-black outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-center text-xl font-black outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition font-mono"
               />
             </div>
+
             <div className="flex gap-2.5">
               <button onClick={() => setPromptId(null)} className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl transition text-sm">
                 {t("cancel")}
@@ -502,16 +605,24 @@ export default function Home() {
                   const val = parseInt(promptQty, 10);
                   if (isNaN(val) || val <= 0) {
                     patch(promptProd.id, { orderQty: null });
+                    setOrderUnits((prev) => {
+                      const next = { ...prev };
+                      delete next[promptProd.id];
+                      return next;
+                    });
                     notify(lang === "en" ? "Item removed from order list." : "تمت إزالة المنتج من قائمة الطلبات.");
                   } else {
                     patch(promptProd.id, { orderQty: val });
-                    notify(lang === "en" ? `Quantity (${val}) set successfully! 🛒` : `تم تحديد الكمية (${val}) بنجاح! 🛒`);
+                    setOrderUnits((prev) => ({ ...prev, [promptProd.id]: promptUnit }));
+                    const unitTitle = promptUnit === "CTN" ? (lang === "en" ? "Cartons" : "كرتون") : promptUnit === "PKT" ? (lang === "en" ? "Packets" : "باكت") : (lang === "en" ? "Pieces" : "حبة");
+                    notify(lang === "en" ? `Ordered: ${val} ${unitTitle}! 🛒` : `تم تحديد الطلب: ${val} ${unitTitle}! 🛒`);
                   }
                   setPromptId(null);
                 }}
-                className="flex-[2] bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-600/30 text-sm"
+                className="flex-[2] bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl transition shadow-lg shadow-blue-600/30 text-sm flex items-center justify-center gap-1.5"
               >
-                {lang === "en" ? "Save to List" : "حفظ في القائمة"}
+                <i className="ph-bold ph-check"></i>
+                <span>{lang === "en" ? "Save to List" : "حفظ في القائمة"}</span>
               </button>
             </div>
           </div>
@@ -620,8 +731,11 @@ export default function Home() {
                       <p className="text-[11px] font-sans text-slate-400" dir="ltr">{lang === "en" ? p.nameAr : p.nameEn}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="bg-amber-100 text-amber-950 font-black px-3 py-1.5 rounded-xl text-sm font-sans">
-                        {lang === "en" ? `Order: ${p.orderQty}` : `الطلب: ${p.orderQty}`}
+                      <div className="bg-amber-100 text-amber-950 font-black px-3 py-1.5 rounded-xl text-sm font-sans flex items-center gap-1.5 shadow-sm">
+                        <span>{lang === "en" ? `Order: ${p.orderQty}` : `الطلب: ${p.orderQty}`}</span>
+                        <span className="text-xs bg-amber-200/90 text-amber-900 px-2 py-0.5 rounded-lg font-bold">
+                          {getSelectedOrderUnitLabel(p.id, p.unitCode, p.unitLabel)}
+                        </span>
                       </div>
                       <button
                         onClick={() => patch(p.id, { orderQty: null })}
@@ -642,6 +756,16 @@ export default function Home() {
               <button onClick={copyOrderText} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition shadow-md flex items-center justify-center gap-1 text-xs">
                 <i className="ph-bold ph-copy"></i> {t("copySuccess").replace("!", "")}
               </button>
+              <button
+                onClick={() => {
+                  setShowOrder(false);
+                  setShowReceivingModal(true);
+                }}
+                className="flex-[1.4] bg-amber-500 hover:bg-amber-600 text-slate-950 font-black py-2.5 px-3 rounded-xl transition shadow-md flex items-center justify-center gap-1.5 text-xs"
+                title={lang === "en" ? "Check arrived products and intake to stock" : "فحص المنتجات الواصلة وتوريدها للمخزون"}
+              >
+                <i className="ph-bold ph-package-receive text-base"></i> {lang === "en" ? "Receive Now 📥" : "استلام المنتجات 📥"}
+              </button>
               <button onClick={handleSendOrderToAdmin} className="flex-[1.5] bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-3 rounded-xl transition shadow-md flex items-center justify-center gap-1.5 text-xs">
                 <i className="ph-bold ph-paper-plane-tilt text-sm"></i> {lang === "en" ? "Send to Admin 🚀" : "إرسال للأدمن 🚀"}
               </button>
@@ -651,6 +775,26 @@ export default function Home() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Goods Receiving & Stock Intake Modal */}
+      {showReceivingModal && (
+        <GoodsReceivingModal
+          isOpen={showReceivingModal}
+          onClose={() => setShowReceivingModal(false)}
+          orderItems={orderedItems.map((p) => ({
+            id: p.id,
+            code: p.code,
+            nameAr: p.nameAr,
+            nameEn: p.nameEn,
+            orderQty: p.orderQty ?? 1,
+            unitLabel: getSelectedOrderUnitLabel(p.id, p.unitCode, p.unitLabel),
+            unitCode: orderUnits[p.id] || p.unitCode,
+          }))}
+          onSuccess={() => {
+            notify(lang === "en" ? "Stock successfully received and updated! 🟢" : "تم استلام البضاعة وتوريد الكميات للمخزون بنجاح! 🟢");
+          }}
+        />
       )}
 
       {/* Employee Auth Modal */}
@@ -685,6 +829,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 
 function ProductCard({
   p,
+  orderUnit,
   onPatch,
   onStep,
   onOrder,
@@ -692,6 +837,7 @@ function ProductCard({
   onOpenHistory,
 }: {
   p: Product;
+  orderUnit?: "CTN" | "PKT" | "PCS";
   onPatch: (id: number, fields: Fields, debounce?: boolean) => void;
   onStep: (p: Product, field: "qty" | "packs" | "loose", change: number) => void;
   onOrder: (id: number) => void;
@@ -784,11 +930,21 @@ function ProductCard({
             <button
               onClick={() => onOrder(p.id)}
               title={lang === "en" ? "Add to order list" : "إضافة لقائمة الطلب"}
-              className={`text-xs px-2.5 py-1 rounded-md border transition ${
+              className={`text-xs px-2.5 py-1 rounded-md border transition flex items-center gap-1 ${
                 hasOrder ? "bg-blue-600 text-white border-blue-600 shadow-sm font-bold" : "bg-white/90 text-slate-600 border-black/10 hover:bg-slate-100"
               }`}
             >
-              <i className="ph-bold ph-shopping-cart text-sm"></i> {hasOrder ? p.orderQty : (lang === "en" ? "Order" : "طلب")}
+              <i className="ph-bold ph-shopping-cart text-sm"></i>
+              {hasOrder ? (
+                <span>
+                  {p.orderQty}{" "}
+                  <span className="text-[10px] font-semibold opacity-90">
+                    {orderUnit === "CTN" ? (lang === "en" ? "CTN" : "كرتون") : orderUnit === "PKT" ? (lang === "en" ? "PKT" : "باكت") : (lang === "en" ? "PCS" : "حبة")}
+                  </span>
+                </span>
+              ) : (
+                lang === "en" ? "Order" : "طلب"
+              )}
             </button>
           </div>
         </div>

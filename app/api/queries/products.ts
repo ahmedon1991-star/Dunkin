@@ -150,6 +150,80 @@ export async function updateProduct(
   }
 }
 
+export async function receiveOrderItems(
+  items: Array<{
+    productId?: number;
+    productCode: string;
+    orderedQty: number;
+    receivedQty: number;
+    status: "received_full" | "received_partial" | "not_received";
+    notes?: string | null;
+  }>,
+  meta: {
+    receivedBy: string;
+    branchCode: string;
+    submissionId?: string;
+  }
+) {
+  const updatedItems: Array<{ id: number; prevQty: number; newQty: number; addedQty: number }> = [];
+
+  for (const item of items) {
+    const current = memoryProducts.find(
+      (p) => (item.productId && p.id === item.productId) || p.code === item.productCode
+    );
+
+    if (current) {
+      const prevQty = current.qty ?? 0;
+      const addedQty = Math.max(0, item.receivedQty);
+      const newQty = prevQty + addedQty;
+
+      // Only alter stock qty if items were actually received
+      if (addedQty > 0) {
+        const log: StockLog = {
+          id: `log-recv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          productId: current.id,
+          productCode: current.code,
+          productNameAr: current.nameAr,
+          productNameEn: current.nameEn,
+          field: "qty",
+          prevQty,
+          newQty,
+          delta: addedQty,
+          changeType: "increase",
+          updatedBy: `${meta.receivedBy} (استلام وتوريد طلبية)`,
+          branchCode: meta.branchCode,
+          timestamp: new Date().toISOString(),
+        };
+
+        lastStockUpdates[current.id] = log;
+        stockLogs.unshift(log);
+        if (stockLogs.length > 500) stockLogs.pop();
+
+        current.qty = newQty;
+        current.orderQty = null; // Fulfill order requirement
+        current.updatedAt = new Date();
+        current.lastStockUpdate = log;
+
+        updatedItems.push({ id: current.id, prevQty, newQty, addedQty });
+
+        try {
+          await getDb()
+            .update(products)
+            .set({ qty: newQty, orderQty: null, updatedAt: new Date() })
+            .where(eq(products.id, current.id));
+        } catch (err) {
+          console.warn("DB update fallback during goods receipt:", err);
+        }
+      } else if (item.status === "not_received") {
+        // Did not arrive: keep current stock, but log notes or optionally keep order
+        current.updatedAt = new Date();
+      }
+    }
+  }
+
+  return { ok: true, count: updatedItems.length, updatedItems };
+}
+
 export function getStockLogs(productId?: number): StockLog[] {
   if (productId != null) {
     return stockLogs.filter((l) => l.productId === productId);
