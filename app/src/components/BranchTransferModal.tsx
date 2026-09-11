@@ -15,7 +15,7 @@ export function BranchTransferModal({
   onClose,
   defaultTab = "outgoing",
 }: BranchTransferModalProps) {
-  const { lang, t, getProductName, getBranchName, getEmployeeName } = useLanguage();
+  const { lang, getProductName, getBranchName } = useLanguage();
   const { session, selectedBranch, branchesList } = useAuth();
   const utils = trpc.useUtils();
 
