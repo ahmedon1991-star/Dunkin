@@ -49,6 +49,7 @@ export default function Home() {
   const [showOrder, setShowOrder] = useState(false);
   const [showReceivingModal, setShowReceivingModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
 
@@ -153,6 +154,25 @@ export default function Home() {
 
   const orderedItems = items.filter((p) => p.orderQty != null && p.orderQty > 0);
   const promptProd = promptId != null ? items.find((p) => p.id === promptId) : undefined;
+
+  const stockStats = useMemo(() => {
+    let inStock = 0;
+    let lowStock = 0;
+    let outOfStock = 0;
+    items.forEach((p) => {
+      const q = p.qty ?? 0;
+      if (q === 0) outOfStock++;
+      else if (q <= 10) lowStock++;
+      else inStock++;
+    });
+    return {
+      total: items.length,
+      inStock,
+      lowStock,
+      outOfStock,
+      inOrder: orderedItems.length,
+    };
+  }, [items, orderedItems.length]);
 
   const fallbackCopy = (text: string) => {
     const textarea = document.createElement("textarea");
@@ -303,253 +323,517 @@ export default function Home() {
       )}
 
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-600/30">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Mobile Sidebar Toggle Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xl transition active:scale-95 shrink-0"
+              aria-label="Toggle sidebar menu"
+              title={lang === "en" ? "Toggle Menu" : "فتح/إغلاق القائمة الجانبية"}
+            >
+              <i className={`ph-bold ${mobileMenuOpen ? "ph-x" : "ph-list"}`}></i>
+            </button>
+
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-600/25 shrink-0">
               <i className="ph ph-package text-2xl"></i>
             </div>
             <div>
-              <h1 className="text-lg md:text-xl font-extrabold text-slate-800 leading-none">{t("appTitle")}</h1>
-              <p className="text-[11px] text-emerald-600 font-bold mt-1 flex items-center gap-1">
+              <h1 className="text-base sm:text-lg font-black text-slate-900 leading-tight flex items-center gap-1.5">
+                <span>{t("appTitle")}</span>
+              </h1>
+              <p className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>{selectedBranch} — {items.length} {t("items")} ({lang === "en" ? "Full Count" : "عدد كامل"})</span>
+                <span>{selectedBranch} — {items.length} {t("items")}</span>
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Branch Switcher Dropdown */}
-            <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm">
-              <i className="ph-bold ph-storefront text-slate-500 text-base"></i>
-              <span className="text-[11px] text-slate-500 font-normal">{lang === "en" ? "Branch:" : "الفرع:"}</span>
-              <select
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="bg-transparent border-none outline-none font-black text-xs cursor-pointer text-slate-900"
-                title={lang === "en" ? "Select Branch" : "اختر الفرع لعرض المنتجات بالكامل"}
-              >
-                {branchesList.map((b) => (
-                  <option key={b.branch_code} value={b.branch_code}>
-                    {b.branch_code} - {getBranchName(b.branch_code, b.branch_name)}
-                  </option>
-                ))}
-              </select>
-            </div>
 
+          {/* Top Quick Actions */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Language Toggle Button */}
             <button
               onClick={toggleLang}
               title={t("langTitle")}
-              className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-xl font-extrabold transition flex items-center gap-1.5 shadow-md text-xs md:text-sm"
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 sm:px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 text-xs"
             >
-              <i className="ph-bold ph-globe text-lg"></i>
-              <span>{t("langBtn")}</span>
+              <i className="ph-bold ph-globe text-base text-blue-600"></i>
+              <span className="hidden sm:inline">{t("langBtn")}</span>
             </button>
 
             {/* Order Cart Button */}
             <button
               onClick={() => setShowOrder(true)}
-              className="relative bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 border border-blue-200 text-xs md:text-sm"
+              className="relative bg-blue-50 text-blue-700 hover:bg-blue-100 px-2.5 sm:px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 border border-blue-200 text-xs shadow-2xs"
+              title={t("orderList")}
             >
-              <i className="ph-bold ph-shopping-cart text-lg"></i> <span className="hidden sm:inline">{t("orderList")}</span>
+              <i className="ph-bold ph-shopping-cart text-base"></i>
+              <span className="hidden sm:inline">{t("orderList")}</span>
               {orderedItems.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black">
+                <span className="bg-red-500 text-white text-[10px] min-w-5 h-5 px-1 rounded-full flex items-center justify-center font-black animate-pulse">
                   {orderedItems.length}
                 </span>
               )}
             </button>
 
-            {/* Goods Receiving & Stock Inflow Button */}
+            {/* Goods Receiving Button */}
             <button
               id="btn-goods-receiving"
               onClick={() => {
                 if (orderedItems.length === 0) {
-                  notify(lang === "en" ? "No pending ordered products to receive. Add items to order first or select products!" : "لا توجد بضاعة في قائمة الطلبات لاستلامها حالياً! حدد كميات الطلب أولاً.");
+                  notify(lang === "en" ? "No pending ordered products to receive. Add items to order first!" : "لا توجد بضاعة في قائمة الطلبات لاستلامها حالياً! حدد كميات الطلب أولاً.");
                   setShowOrder(true);
                 } else {
                   setShowReceivingModal(true);
                 }
               }}
-              className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-3 py-2 rounded-xl font-black transition flex items-center gap-1.5 border border-emerald-300 text-xs md:text-sm shadow-sm"
+              className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-2.5 sm:px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 border border-emerald-300 text-xs shadow-2xs"
               title={lang === "en" ? "Receive and Confirm Delivery into Stock" : "استلام المنتجات وتوريد المخزون"}
             >
-              <i className="ph-bold ph-package-receive text-lg text-emerald-600"></i>
-              <span>{lang === "en" ? "Receive Goods" : "استلام المنتجات"}</span>
-              {orderedItems.length > 0 && (
-                <span className="bg-emerald-600 text-white text-[10px] font-mono px-1.5 py-0.2 rounded-full">
-                  {orderedItems.length}
-                </span>
-              )}
+              <i className="ph-bold ph-package-receive text-base text-emerald-600"></i>
+              <span className="hidden md:inline">{lang === "en" ? "Receive" : "استلام"}</span>
             </button>
 
             {/* Branch Transfer Workflow Button */}
             <button
               id="btn-branch-transfers"
               onClick={() => setShowTransferModal(true)}
-              className="relative bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-2 rounded-xl font-black transition flex items-center gap-1.5 border border-indigo-200 text-xs md:text-sm shadow-sm"
+              className="relative bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2.5 sm:px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 border border-indigo-200 text-xs shadow-2xs"
               title={lang === "en" ? "Inter-Branch Transfer Requests & Inflow" : "طلب بضاعة من فرع آخر / تحويلات الفروع"}
             >
-              <i className="ph-bold ph-arrows-left-right text-lg text-indigo-600"></i>
-              <span className="hidden sm:inline">{lang === "en" ? "Branch Transfers" : "طلب من فرع"}</span>
-              <span className="sm:hidden">{lang === "en" ? "Transfers" : "تحويلات"}</span>
+              <i className="ph-bold ph-arrows-left-right text-base text-indigo-600"></i>
+              <span className="hidden md:inline">{lang === "en" ? "Transfers" : "تحويلات"}</span>
               {pendingTransfersCount > 0 && (
-                <span className="bg-indigo-600 text-white text-[10px] font-mono px-1.5 py-0.2 rounded-full animate-pulse">
+                <span className="bg-indigo-600 text-white text-[10px] min-w-5 h-5 px-1 rounded-full flex items-center justify-center font-black animate-pulse">
                   {pendingTransfersCount}
                 </span>
               )}
-            </button>
-
-            {/* Operational Audit Button */}
-            <button
-              id="btn-go-audit"
-              onClick={() => navigate("/audit")}
-              className="bg-orange-50 text-orange-600 hover:bg-orange-100 px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 border border-orange-200 text-xs md:text-sm"
-              title={t("operationalAudit")}
-            >
-              <i className="ph-bold ph-clipboard-text text-lg"></i>
-              <span className="hidden sm:inline">{t("operationalAudit")}</span>
             </button>
 
             {/* Admin Panel Button — STRICTLY FOR ADMIN ONLY */}
             {session?.role === "admin" && (
               <button
                 onClick={() => navigate("/admin")}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 shadow-md shadow-purple-600/30 text-xs md:text-sm animate-in fade-in"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 shadow-md shadow-purple-600/25 text-xs animate-in fade-in"
               >
-                <i className="ph-bold ph-shield-check text-lg"></i>
-                <span>{t("adminPanel")}</span>
+                <i className="ph-bold ph-shield-check text-base"></i>
+                <span className="hidden sm:inline">{t("adminPanel")}</span>
               </button>
             )}
 
-            {/* Employee Login / Session Badge */}
-            {session ? (
-              session.role === "admin" ? (
-                <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold text-purple-900 shadow-sm">
-                  <i className="ph-bold ph-shield-check text-lg text-purple-600"></i>
-                  <div className="flex flex-col leading-tight">
-                    <span className="font-extrabold text-purple-950">{getEmployeeName(session.full_name)}</span>
-                    <span className="text-[10px] text-purple-600 font-mono">#{session.employee_id} [{session.branch_code}]</span>
-                  </div>
-                  <button
-                    onClick={logout}
-                    title={lang === "en" ? "Logout" : "تسجيل الخروج"}
-                    className="mr-1 text-slate-400 hover:text-red-600 transition"
-                  >
-                    <i className="ph-bold ph-sign-out text-base"></i>
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-800 shadow-sm">
-                  <i className="ph-bold ph-user-circle text-lg text-emerald-600"></i>
-                  <div className="flex flex-col leading-tight">
-                    <span className="font-extrabold">{getEmployeeName(session.full_name)}</span>
-                    <span className="text-[10px] text-emerald-600 font-mono">[{session.branch_code}] #{session.employee_id}</span>
-                  </div>
-                  <button
-                    onClick={logout}
-                    title={lang === "en" ? "Logout" : "تسجيل الخروج"}
-                    className="mr-1 text-slate-400 hover:text-red-600 transition"
-                  >
-                    <i className="ph-bold ph-sign-out text-base"></i>
-                  </button>
-                </div>
-              )
-            ) : null}
+            {/* Session Pill */}
+            {session && (
+              <div className="hidden lg:flex items-center gap-2 bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-800">
+                <i className="ph-bold ph-user-circle text-base text-blue-600"></i>
+                <span className="truncate max-w-[120px]">{getEmployeeName(session.full_name)}</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-
-      <main className="max-w-7xl mx-auto px-4 py-4 md:py-8">
-        {/* Search & Filter */}
-        <div className="bg-white rounded-2xl p-3 md:p-6 border border-slate-200 shadow-sm mb-4 md:mb-6 flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <i className={`ph ph-magnifying-glass absolute top-1/2 ${lang === 'ar' ? 'right-4' : 'left-4'} -translate-y-1/2 text-slate-400 text-xl`}></i>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("searchPlaceholder")}
-              className={`w-full bg-slate-50 border border-slate-200 rounded-xl ${lang === 'ar' ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3 text-slate-800 font-medium focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition text-sm md:text-base`}
-            />
-          </div>
-          <div className="w-full md:w-64">
-            <select
-              value={unitFilter}
-              onChange={(e) => setUnitFilter(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-medium focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition appearance-none text-sm md:text-base"
-            >
-              <option value="ALL">{t("allUnits")}</option>
-              <option value="CTN">📦 CTN ({lang === 'ar' ? 'كرتون' : 'Carton'})</option>
-              <option value="PKT">📑 PKT ({lang === 'ar' ? 'باكيت' : 'Packet'})</option>
-              <option value="PCS">✨ PCS ({lang === 'ar' ? 'حبة' : 'Piece'})</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Category Tabs */}
-        <div className="mb-4 md:mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
-          <div className="flex gap-2 min-w-max">
-            <TabButton active={selectedCat === "ALL"} onClick={() => setSelectedCat("ALL")}>
-              {t("allCategories")}{" "}
-              <span className={`px-1.5 rounded-md ml-1 text-xs ${selectedCat === "ALL" ? "bg-white/20" : "bg-slate-100 text-slate-500 border border-slate-200"}`}>
-                {items.length}
+      {/* ── Main Dashboard Container with Sidebar ─────────────── */}
+      <div className="flex-1 flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6 gap-4 sm:gap-6">
+        
+        {/* ── Sidebar (المينيو الجانبية للمستخدم والفرع) ─────────────── */}
+        <aside
+          className={`${
+            mobileMenuOpen ? "block" : "hidden"
+          } lg:block w-full lg:w-72 shrink-0 space-y-4`}
+        >
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-sm sticky top-20">
+            {/* Sidebar Brand & Branch Header */}
+            <div className="px-2 pb-3 mb-2 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-slate-400 block">
+                  {lang === "ar" ? "لوحة تحكم الفرع" : "Branch Control"}
+                </span>
+                <span className="text-[11px] font-bold text-blue-600 font-mono">
+                  {selectedBranch} — {getBranchName(selectedBranch, branchesList.find(b => b.branch_code === selectedBranch)?.branch_name)}
+                </span>
+              </div>
+              <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                {lang === "ar" ? "مباشر" : "Live"}
               </span>
-            </TabButton>
-            {categories.map((cat) => {
-              const meta = getMeta(cat);
-              const count = items.filter((p) => p.category === cat).length;
-              const active = selectedCat === cat;
-              const catName = getCategoryName(cat);
-              return (
-                <TabButton key={cat} active={active} onClick={() => setSelectedCat(cat)}>
-                  {meta.icon} {catName}{" "}
-                  <span className={`px-1.5 py-0.5 rounded-md ml-1 text-[11px] ${active ? "bg-white/20" : "bg-slate-100 text-slate-500 border border-slate-200"}`}>
-                    {count}
+            </div>
+
+            {/* Menu Nav Links */}
+            <nav className="space-y-1.5">
+              {/* 1. Catalog */}
+              <button
+                onClick={() => {
+                  setSelectedCat("ALL");
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full text-start p-3 rounded-2xl transition flex items-center justify-between gap-3 ${
+                  selectedCat === "ALL" && !showOrder && !showSnapshots
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/25"
+                    : "text-slate-700 hover:bg-slate-50 border border-transparent hover:border-slate-200"
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-lg transition ${
+                    selectedCat === "ALL" && !showOrder && !showSnapshots ? "bg-white/20 text-white" : "bg-blue-50 text-blue-600"
+                  }`}>
+                    <i className="ph-bold ph-package"></i>
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-black truncate ${selectedCat === "ALL" && !showOrder && !showSnapshots ? "text-white" : "text-slate-900"}`}>
+                      {lang === "ar" ? "جرد وتصفح المخزون" : "Inventory Catalog"}
+                    </p>
+                    <p className={`text-[10px] truncate ${selectedCat === "ALL" && !showOrder && !showSnapshots ? "text-blue-100" : "text-slate-400"}`}>
+                      {lang === "ar" ? "عرض المنتجات والعد الفعلي" : "Browse items & audit counts"}
+                    </p>
+                  </div>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[11px] font-black shrink-0 ${
+                  selectedCat === "ALL" && !showOrder && !showSnapshots ? "bg-white text-blue-700" : "bg-slate-100 text-slate-600"
+                }`}>
+                  {items.length}
+                </span>
+              </button>
+
+              {/* 2. Next Day Cargo Order */}
+              <button
+                onClick={() => {
+                  setShowOrder(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-start p-3 rounded-2xl transition flex items-center justify-between gap-3 text-slate-700 hover:bg-blue-50/60 border border-transparent hover:border-blue-200"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-lg bg-blue-50 text-blue-600">
+                    <i className="ph-bold ph-shopping-cart"></i>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black truncate text-slate-900">
+                      {lang === "ar" ? "قائمة طلبات الغد" : "Next-Day Cargo Order"}
+                    </p>
+                    <p className="text-[10px] truncate text-slate-400">
+                      {lang === "ar" ? "مراجعة الطلبية وإرسالها للأدمن" : "Review cart & send to admin"}
+                    </p>
+                  </div>
+                </div>
+                {orderedItems.length > 0 ? (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-black shrink-0 bg-red-500 text-white animate-pulse">
+                    {orderedItems.length}
                   </span>
-                </TabButton>
-              );
-            })}
-          </div>
-        </div>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0 bg-slate-100 text-slate-400">0</span>
+                )}
+              </button>
 
-        {/* Results Status */}
-        <div className="flex items-center justify-between mb-3 px-1">
-          <h2 className="text-sm md:text-base font-bold text-slate-800">{t("productCatalog")}</h2>
-          <span className="bg-blue-100 text-blue-800 py-0.5 px-2.5 rounded-full text-xs font-bold">{filtered.length}</span>
-        </div>
+              {/* 3. Goods Receiving & Stock Intake */}
+              <button
+                onClick={() => {
+                  if (orderedItems.length === 0) {
+                    notify(lang === "en" ? "No pending ordered products to receive. Add items to order first!" : "لا توجد بضاعة في قائمة الطلبات لاستلامها حالياً! حدد كميات الطلب أولاً.");
+                    setShowOrder(true);
+                  } else {
+                    setShowReceivingModal(true);
+                  }
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-start p-3 rounded-2xl transition flex items-center justify-between gap-3 text-slate-700 hover:bg-emerald-50/60 border border-transparent hover:border-emerald-200"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-lg bg-emerald-50 text-emerald-600">
+                    <i className="ph-bold ph-package-receive"></i>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black truncate text-slate-900">
+                      {lang === "ar" ? "استلام وتوريد البضاعة" : "Receive Goods"}
+                    </p>
+                    <p className="text-[10px] truncate text-slate-400">
+                      {lang === "ar" ? "فحص الوارد وتوريد المخزون" : "Confirm delivery into stock"}
+                    </p>
+                  </div>
+                </div>
+                {orderedItems.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-black shrink-0 bg-emerald-600 text-white">
+                    {orderedItems.length}
+                  </span>
+                )}
+              </button>
 
-        {/* Products Grid */}
-        {filtered.length === 0 ? (
-          <div className="py-16 flex flex-col items-center justify-center text-slate-400 bg-white rounded-3xl border border-dashed border-slate-300">
-            <i className="ph-duotone ph-package text-6xl mb-3 text-slate-300"></i>
-            <h3 className="text-lg font-bold text-slate-700 mb-1">{t("searchNoResults")}</h3>
+              {/* 4. Inter-Branch Transfers */}
+              <button
+                onClick={() => {
+                  setShowTransferModal(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-start p-3 rounded-2xl transition flex items-center justify-between gap-3 text-slate-700 hover:bg-indigo-50/60 border border-transparent hover:border-indigo-200"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-lg bg-indigo-50 text-indigo-600">
+                    <i className="ph-bold ph-arrows-left-right"></i>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black truncate text-slate-900">
+                      {lang === "ar" ? "التحويلات بين الفروع" : "Branch Transfers"}
+                    </p>
+                    <p className="text-[10px] truncate text-slate-400">
+                      {lang === "ar" ? "طلب من فرع وتتبع الشحنات" : "Request items & track transfers"}
+                    </p>
+                  </div>
+                </div>
+                {pendingTransfersCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-black shrink-0 bg-indigo-600 text-white animate-pulse">
+                    {pendingTransfersCount}
+                  </span>
+                )}
+              </button>
+
+              {/* 5. Operational Audit */}
+              <button
+                onClick={() => {
+                  navigate("/audit");
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-start p-3 rounded-2xl transition flex items-center justify-between gap-3 text-slate-700 hover:bg-orange-50/60 border border-transparent hover:border-orange-200"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-lg bg-orange-50 text-orange-600">
+                    <i className="ph-bold ph-clipboard-text"></i>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black truncate text-slate-900">
+                      {lang === "ar" ? "الجرد التشغيلي والتقارير" : "Operational Audit"}
+                    </p>
+                    <p className="text-[10px] truncate text-slate-400">
+                      {lang === "ar" ? "فحص الفائض والعجز والتوثيق" : "Variance check & audit logs"}
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* 6. Save Snapshot */}
+              <button
+                onClick={() => {
+                  setShowSnapshots(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-start p-3 rounded-2xl transition flex items-center justify-between gap-3 text-slate-700 hover:bg-slate-100 border border-transparent hover:border-slate-200"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-lg bg-slate-100 text-slate-700">
+                    <i className="ph-bold ph-floppy-disk"></i>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black truncate text-slate-900">
+                      {lang === "ar" ? "حفظ واسترجاع الجرد" : "Snapshots & Backups"}
+                    </p>
+                    <p className="text-[10px] truncate text-slate-400">
+                      {lang === "ar" ? "نسخ الجرد الأسبوعي والشهري" : "Save/view periodic backups"}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </nav>
+
+            {/* Branch Switcher In Sidebar */}
+            <div className="mt-4 pt-3 border-t border-slate-100">
+              <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                {lang === "ar" ? "تبديل الفرع المختار" : "Switch Branch"}
+              </label>
+              <div className="relative bg-slate-50 border border-slate-200 rounded-2xl p-1.5 flex items-center gap-2">
+                <i className="ph-bold ph-storefront text-slate-500 text-lg shrink-0 mr-1"></i>
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  className="bg-transparent border-none outline-none font-bold text-xs text-slate-800 w-full cursor-pointer"
+                >
+                  {branchesList.map((b) => (
+                    <option key={b.branch_code} value={b.branch_code}>
+                      {b.branch_code} - {getBranchName(b.branch_code, b.branch_name)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Reset All Stock Button */}
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setShowReset(true)}
+                className="w-full py-2.5 px-3 rounded-xl border border-red-200 bg-red-50/60 hover:bg-red-50 text-red-600 font-bold text-xs transition flex items-center justify-center gap-1.5"
+              >
+                <i className="ph-bold ph-arrows-counter-clockwise text-sm"></i>
+                <span>{t("resetAllBtn")}</span>
+              </button>
+            </div>
+
+            {/* Employee Session Card at Bottom of Sidebar */}
+            {session && (
+              <div className="mt-4 pt-3 border-t border-slate-100 bg-slate-50/80 rounded-2xl p-3 border border-slate-200/60 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-sm shrink-0">
+                    <i className="ph-bold ph-user"></i>
+                  </div>
+                  <div className="min-w-0 leading-tight">
+                    <p className="text-xs font-black text-slate-900 truncate">
+                      {getEmployeeName(session.full_name)}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-mono">
+                      #{session.employee_id} • {session.role === "admin" ? "Admin" : "Employee"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={logout}
+                  title={lang === "en" ? "Logout" : "تسجيل الخروج"}
+                  className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-600 hover:border-red-200 transition shrink-0"
+                >
+                  <i className="ph-bold ph-sign-out text-sm"></i>
+                </button>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
-            {filtered.map((p) => (
-              <ProductCard
-                key={p.id}
-                p={p}
-                orderUnit={orderUnits[p.id]}
-                onPatch={patch}
-                onStep={stepField}
-                onOrder={(id) => {
-                  const prod = items.find((x) => x.id === id);
-                  setPromptQty(prod?.orderQty != null ? String(prod.orderQty) : "");
-                  setPromptUnit(orderUnits[id] || (prod?.unitCode as any) || "CTN");
-                  setPromptId(id);
-                }}
-                onCopyCode={(code) => {
-                  navigator.clipboard.writeText(code);
-                  notify((lang === 'en' ? 'Code copied: ' : 'تم نسخ الكود: ') + code);
-                }}
-                onOpenHistory={(prod) => setHistoryProduct(prod)}
+        </aside>
+
+        {/* ── Main Content Area (منطقة المنتجات وجرد المخزون) ───────── */}
+        <main className="flex-1 min-w-0 space-y-4 sm:space-y-6">
+          {/* Top Quick KPI Overview */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-400">{lang === "ar" ? "إجمالي الأصناف" : "Total Items"}</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">{stockStats.total}</p>
+              </div>
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
+                <i className="ph-bold ph-package"></i>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-400">{lang === "ar" ? "متوفر بالمخزون" : "In Stock"}</p>
+                <p className="text-xl sm:text-2xl font-black text-emerald-600 mt-0.5">{stockStats.inStock}</p>
+              </div>
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+                <i className="ph-bold ph-check-circle"></i>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-400">{lang === "ar" ? "منخفض أو نافد" : "Low / Out"}</p>
+                <p className="text-xl sm:text-2xl font-black text-amber-600 mt-0.5">
+                  {stockStats.lowStock + stockStats.outOfStock}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">
+                <i className="ph-bold ph-warning-circle"></i>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-400">{lang === "ar" ? "في قائمة الطلب" : "In Order List"}</p>
+                <p className="text-xl sm:text-2xl font-black text-purple-600 mt-0.5">{stockStats.inOrder}</p>
+              </div>
+              <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shrink-0">
+                <i className="ph-bold ph-shopping-cart-simple"></i>
+              </div>
+            </div>
+          </div>
+
+          {/* Search & Filter Bar */}
+          <div className="bg-white rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <i className={`ph ph-magnifying-glass absolute top-1/2 ${lang === 'ar' ? 'right-4' : 'left-4'} -translate-y-1/2 text-slate-400 text-lg`}></i>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("searchPlaceholder")}
+                className={`w-full bg-slate-50 border border-slate-200 rounded-2xl ${lang === 'ar' ? 'pr-11 pl-4' : 'pl-11 pr-4'} py-2.5 text-slate-800 font-medium focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition text-sm`}
               />
-            ))}
+            </div>
+            <div className="w-full sm:w-56">
+              <select
+                value={unitFilter}
+                onChange={(e) => setUnitFilter(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-slate-800 font-medium focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition text-sm cursor-pointer"
+              >
+                <option value="ALL">{t("allUnits")}</option>
+                <option value="CTN">📦 CTN ({lang === 'ar' ? 'كرتون' : 'Carton'})</option>
+                <option value="PKT">📑 PKT ({lang === 'ar' ? 'باكيت' : 'Packet'})</option>
+                <option value="PCS">✨ PCS ({lang === 'ar' ? 'حبة' : 'Piece'})</option>
+              </select>
+            </div>
           </div>
-        )}
-      </main>
+
+          {/* Category Navigation Pills */}
+          <div className="overflow-x-auto pb-1 -mx-2 px-2 sm:mx-0 sm:px-0">
+            <div className="flex gap-2 min-w-max">
+              <TabButton active={selectedCat === "ALL"} onClick={() => setSelectedCat("ALL")}>
+                {t("allCategories")}{" "}
+                <span className={`px-1.5 py-0.5 rounded-md ml-1 text-xs font-mono ${selectedCat === "ALL" ? "bg-white/20" : "bg-slate-100 text-slate-500 border border-slate-200"}`}>
+                  {items.length}
+                </span>
+              </TabButton>
+              {categories.map((cat) => {
+                const meta = getMeta(cat);
+                const count = items.filter((p) => p.category === cat).length;
+                const active = selectedCat === cat;
+                const catName = getCategoryName(cat);
+                return (
+                  <TabButton key={cat} active={active} onClick={() => setSelectedCat(cat)}>
+                    {meta.icon} {catName}{" "}
+                    <span className={`px-1.5 py-0.5 rounded-md ml-1 text-[11px] font-mono ${active ? "bg-white/20" : "bg-slate-100 text-slate-500 border border-slate-200"}`}>
+                      {count}
+                    </span>
+                  </TabButton>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Catalog Header & Count */}
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-sm sm:text-base font-black text-slate-800 flex items-center gap-2">
+              <i className="ph-bold ph-squares-four text-blue-600"></i>
+              <span>{t("productCatalog")}</span>
+            </h2>
+            <span className="bg-blue-50 text-blue-700 border border-blue-200 py-0.5 px-2.5 rounded-full text-xs font-black">
+              {filtered.length} {t("items")}
+            </span>
+          </div>
+
+          {/* Products Grid */}
+          {filtered.length === 0 ? (
+            <div className="py-16 flex flex-col items-center justify-center text-slate-400 bg-white rounded-3xl border border-dashed border-slate-300">
+              <i className="ph-duotone ph-package text-6xl mb-3 text-slate-300"></i>
+              <h3 className="text-lg font-bold text-slate-700 mb-1">{t("searchNoResults")}</h3>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+              {filtered.map((p) => (
+                <ProductCard
+                  key={p.id}
+                  p={p}
+                  orderUnit={orderUnits[p.id]}
+                  onPatch={patch}
+                  onStep={stepField}
+                  onOrder={(id) => {
+                    const prod = items.find((x) => x.id === id);
+                    setPromptQty(prod?.orderQty != null ? String(prod.orderQty) : "");
+                    setPromptUnit(orderUnits[id] || (prod?.unitCode as any) || "CTN");
+                    setPromptId(id);
+                  }}
+                  onCopyCode={(code) => {
+                    navigator.clipboard.writeText(code);
+                    notify((lang === 'en' ? 'Code copied: ' : 'تم نسخ الكود: ') + code);
+                  }}
+                  onOpenHistory={(prod) => setHistoryProduct(prod)}
+                />
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
 
 
       {/* MODAL: ORDER QTY & UNIT PROMPT */}
@@ -911,14 +1195,14 @@ function ProductCard({
         const raw = e.target.value.trim();
         onPatch(p.id, { [field]: raw === "" ? null : Math.max(0, parseInt(raw, 10) || 0) } as Fields, true);
       }}
-      className={`card-input ${w} bg-white border text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none ${extraCls}`}
+      className={`card-input ${w} bg-white border text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition text-center font-black ${extraCls}`}
     />
   );
 
   const stepBtn = (field: "qty" | "packs" | "loose", change: number, cls: string, icon: string, big = false) => (
     <button
       onClick={() => onStep(p, field, change)}
-      className={`${big ? "w-8 h-8 text-sm" : "w-7 h-7 text-xs"} rounded-lg font-bold flex items-center justify-center active:scale-95 transition ${cls}`}
+      className={`${big ? "w-9 h-9 text-sm" : "w-7 h-7 text-xs"} rounded-xl font-black flex items-center justify-center active:scale-95 transition shrink-0 ${cls}`}
     >
       <i className={`ph-bold ${icon}`}></i>
     </button>
@@ -947,67 +1231,86 @@ function ProductCard({
   const unitName = getUnitName(p.unitCode, p.unitLabel);
 
   return (
-    <div className={`rounded-2xl p-3.5 md:p-4 border transition-all hover:shadow-lg group flex flex-col justify-between h-full ${meta.color} hover:border-blue-500/50 relative`}>
+    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 hover:border-blue-500/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between h-full relative group">
       <div>
+        {/* Top Header Row of the Card: Code, Unit, and Stock Status */}
+        <div className="flex items-center justify-between gap-1.5 mb-2.5">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onCopyCode(p.code)}
+              title={lang === "en" ? "Click to copy code" : "اضغط لنسخ الكود"}
+              className="text-xs font-mono font-black bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 px-2 py-0.5 rounded-lg text-slate-700 transition flex items-center gap-1 shadow-2xs"
+            >
+              <span>#{p.code}</span>
+              <i className="ph-bold ph-copy text-[10px] text-slate-400"></i>
+            </button>
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
+              {unitName}
+            </span>
+          </div>
+
+          {/* Smart Stock Status Badge */}
+          {qtyVal === 0 ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+              {lang === "ar" ? "نفد" : "Out of Stock"}
+            </span>
+          ) : qtyVal <= 10 ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              {lang === "ar" ? "منخفض" : "Low Stock"}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              {lang === "ar" ? "متوفر" : "In Stock"}
+            </span>
+          )}
+        </div>
+
+        {/* Product Image preview if available */}
         {p.imageUrl && (
           <div
-            className="mb-3 overflow-hidden rounded-2xl border border-black/10 bg-white/80 shadow-sm cursor-pointer hover:opacity-95 transition"
+            className="mb-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 shadow-inner cursor-pointer relative group/img"
             onClick={() => onOpenHistory(p)}
             title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
           >
-            <img src={p.imageUrl} alt={productName} className="h-28 w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+            <img
+              src={p.imageUrl}
+              alt={productName}
+              className="h-32 w-full object-cover group-hover/img:scale-105 transition duration-300"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition"></div>
           </div>
         )}
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => onCopyCode(p.code)} title={lang === "en" ? "Click to copy code" : "اضغط لنسخ الكود"}>
-            <span className="text-xs font-mono font-black bg-white/90 border border-black/10 px-2 py-0.5 rounded-md text-slate-800 shadow-sm hover:bg-blue-50 transition">
-              #{p.code}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md unit-badge-${p.unitCode} shadow-sm`}>{unitName}</span>
-            <button
-              onClick={() => onPatch(p.id, { mode: isDetailed ? "simple" : "detailed" })}
-              title={lang === "en" ? "Switch view mode" : "تبديل طريقة الجرد"}
-              className="text-[10px] font-bold px-1.5 py-0.5 rounded-md border border-black/10 bg-white/90 hover:bg-white text-slate-600 flex items-center gap-0.5 transition shadow-sm"
-            >
-              <i className="ph-bold ph-arrows-clockwise text-blue-600"></i> {isDetailed ? (lang === "en" ? "Detailed" : "تفصيلي") : (lang === "en" ? "Simple" : "بسيط")}
-            </button>
-            <button
-              onClick={() => onOrder(p.id)}
-              title={lang === "en" ? "Add to order list" : "إضافة لقائمة الطلب"}
-              className={`text-xs px-2.5 py-1 rounded-md border transition flex items-center gap-1 ${
-                hasOrder ? "bg-blue-600 text-white border-blue-600 shadow-sm font-bold" : "bg-white/90 text-slate-600 border-black/10 hover:bg-slate-100"
-              }`}
-            >
-              <i className="ph-bold ph-shopping-cart text-sm"></i>
-              {hasOrder ? (
-                <span>
-                  {p.orderQty}{" "}
-                  <span className="text-[10px] font-semibold opacity-90">
-                    {orderUnit === "CTN" ? (lang === "en" ? "CTN" : "كرتون") : orderUnit === "PKT" ? (lang === "en" ? "PKT" : "باكت") : (lang === "en" ? "PCS" : "حبة")}
-                  </span>
-                </span>
-              ) : (
-                lang === "en" ? "Order" : "طلب"
-              )}
-            </button>
-          </div>
-        </div>
 
-        {/* CRITICAL BOLD PRODUCT NAME REQUIREMENT - Clickable for stock history */}
+        {/* Category Chip & Product Title */}
         <div
-          className="cursor-pointer group/title"
+          className="cursor-pointer group/title mb-2"
           onClick={() => onOpenHistory(p)}
           title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
         >
-          <h4 className="text-[15px] font-extrabold mb-0.5 leading-snug text-slate-900 group-hover/title:text-blue-600 transition flex items-center justify-between gap-1">
-            <span>{productName}</span>
-            <i className="ph-bold ph-info text-slate-400 group-hover/title:text-blue-600 text-sm shrink-0"></i>
-          </h4>
-          <p className="text-[11px] font-sans font-semibold opacity-70 leading-tight line-clamp-1 mb-2">
-            {secondaryName}
-          </p>
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+              <span>{meta.icon}</span>
+              <span>{p.category}</span>
+            </span>
+          </div>
+
+          <div className="flex items-start justify-between gap-1.5">
+            <h4 className="text-[15px] font-black text-slate-900 leading-snug group-hover/title:text-blue-600 transition">
+              {productName}
+            </h4>
+            <span className="w-6 h-6 rounded-full bg-slate-100 group-hover/title:bg-blue-50 text-slate-400 group-hover/title:text-blue-600 flex items-center justify-center shrink-0 transition text-xs">
+              <i className="ph-bold ph-info"></i>
+            </span>
+          </div>
+          {secondaryName && (
+            <p className="text-[11px] font-semibold text-slate-400 line-clamp-1 mt-0.5">
+              {secondaryName}
+            </p>
+          )}
         </div>
 
         {/* Latest Stock Update Indicator Pill */}
@@ -1018,14 +1321,14 @@ function ProductCard({
               e.stopPropagation();
               onOpenHistory(p);
             }}
-            className="w-full mb-2.5 flex items-center justify-between text-[10.5px] font-bold px-2.5 py-1.5 rounded-xl bg-white/90 hover:bg-white text-slate-700 transition border border-black/10 shadow-sm"
+            className="w-full mb-3 flex items-center justify-between text-[11px] font-bold px-2.5 py-1.5 rounded-2xl bg-slate-50 hover:bg-blue-50/50 text-slate-700 transition border border-slate-200/80 shadow-2xs"
             title={lang === "en" ? "Click to view full stock update details & history" : "اضغط لمعاينة تفاصيل آخر تحديث وسجل الحركات"}
           >
             <span className="flex items-center gap-1 text-slate-500">
               <i className="ph-bold ph-clock text-blue-600"></i>
-              <span>{lang === "en" ? "Last Update:" : "آخر تحديث:"}</span>
+              <span>{lang === "en" ? "Last Update:" : "آخر حركة:"}</span>
             </span>
-            <span className={`font-black ${p.lastStockUpdate.changeType === "increase" ? "text-emerald-700" : "text-red-600"}`}>
+            <span className={`font-black ${p.lastStockUpdate.changeType === "increase" ? "text-emerald-700" : "text-rose-600"}`}>
               {p.lastStockUpdate.changeType === "increase" ? `+${p.lastStockUpdate.delta}` : p.lastStockUpdate.delta} {unitName}
             </span>
           </button>
@@ -1036,32 +1339,48 @@ function ProductCard({
               e.stopPropagation();
               onOpenHistory(p);
             }}
-            className="w-full mb-2.5 flex items-center justify-between text-[10px] font-bold px-2 py-1 rounded-xl bg-black/5 hover:bg-black/10 text-slate-500 transition"
+            className="w-full mb-3 flex items-center justify-between text-[10.5px] font-bold px-2.5 py-1.5 rounded-2xl bg-slate-50/60 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition border border-dashed border-slate-200"
             title={lang === "en" ? "Click to view stock history" : "اضغط لمعاينة سجل حركات الصنف"}
           >
             <span className="flex items-center gap-1">
               <i className="ph-bold ph-clock-counter-clockwise text-slate-400"></i>
-              <span>{lang === "en" ? "Stock History" : "سجل الحركات"}</span>
+              <span>{lang === "en" ? "Stock Audit Log" : "سجل الحركات"}</span>
             </span>
-            <span className="text-blue-600">{lang === "en" ? "Details ❯" : "التفاصيل ❯"}</span>
+            <span className="text-blue-600 font-black text-[10px]">{lang === "en" ? "Inspect ❯" : "معاينة ❯"}</span>
           </button>
         )}
       </div>
 
-      <div className="mt-auto space-y-2 pt-2 border-t border-black/5">
+      {/* Card Controls & Stock Mutation Area */}
+      <div className="mt-auto space-y-2 pt-2.5 border-t border-slate-100">
+        {/* Mode Switcher Toggle */}
+        <div className="flex items-center justify-between px-0.5">
+          <span className="text-[11px] font-bold text-slate-500">
+            {lang === "en" ? "Count Mode:" : "طريقة الجرد:"}
+          </span>
+          <button
+            onClick={() => onPatch(p.id, { mode: isDetailed ? "simple" : "detailed" })}
+            title={lang === "en" ? "Switch view mode" : "تبديل طريقة الجرد"}
+            className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 flex items-center gap-1 transition shadow-2xs"
+          >
+            <i className="ph-bold ph-arrows-clockwise text-blue-600"></i>
+            {isDetailed ? (lang === "en" ? "Detailed" : "تفصيلي") : (lang === "en" ? "Simple" : "بسيط")}
+          </button>
+        </div>
+
         {!isDetailed ? (
           <>
-            <div className="flex items-center justify-between bg-white/80 border border-black/10 rounded-xl p-2 shadow-sm">
-              <span className="text-xs font-bold text-slate-700 px-1 flex items-center gap-1">
-                <i className="ph-bold ph-tag text-blue-600 text-base"></i> {t("availableQty")} ({unitName}):
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl p-1.5 shadow-inner">
+              <span className="text-xs font-bold text-slate-700 px-1.5 flex items-center gap-1">
+                <i className="ph-bold ph-tag text-blue-600"></i> {t("availableQty")}:
               </span>
               <div className="flex items-center gap-1.5">
-                {stepBtn("qty", -1, "bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600", "ph-minus", true)}
-                {numInput("qty", "w-16 text-lg border-slate-300", "", "0")}
+                {stepBtn("qty", -1, "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-600 border border-slate-200 shadow-2xs", "ph-minus", true)}
+                {numInput("qty", "w-16 text-lg border-slate-200 rounded-xl", "", "0")}
                 {stepBtn("qty", 1, "bg-blue-600 hover:bg-blue-700 text-white shadow-sm", "ph-plus", true)}
               </div>
             </div>
-            <div className="bg-slate-900 text-white p-2.5 rounded-xl shadow-md flex items-center justify-between">
+            <div className="bg-slate-900 text-white p-2.5 rounded-2xl shadow-md flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-bold text-slate-400 block leading-none">{t("totalStock")}</span>
                 <span className="text-[10px] text-emerald-400 font-bold">{t("directAudit")}</span>
@@ -1073,35 +1392,35 @@ function ProductCard({
           </>
         ) : (
           <>
-            <div className="flex items-center justify-between bg-white/80 border border-black/10 rounded-xl p-1.5 shadow-sm">
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-1.5 shadow-2xs">
               <span className="text-xs font-bold text-slate-700 px-1 flex items-center gap-1">
                 <i className="ph-bold ph-package text-blue-600 text-sm"></i> {t("numPacks")}:
               </span>
               <div className="flex items-center gap-1">
-                {stepBtn("packs", -1, "bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600", "ph-minus")}
-                {numInput("packs", "w-14", "border-slate-300", "0")}
-                {stepBtn("packs", 1, "bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-600", "ph-plus")}
+                {stepBtn("packs", -1, "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-600 border border-slate-200", "ph-minus")}
+                {numInput("packs", "w-14 border-slate-200 rounded-lg", "", "0")}
+                {stepBtn("packs", 1, "bg-white hover:bg-blue-50 hover:text-blue-600 text-slate-600 border border-slate-200", "ph-plus")}
               </div>
             </div>
-            <div className="flex items-center justify-between bg-amber-50/90 border border-amber-300/80 rounded-xl p-1.5 shadow-sm">
+            <div className="flex items-center justify-between bg-amber-50/80 border border-amber-300/80 rounded-xl p-1.5 shadow-2xs">
               <span className="text-xs font-bold text-amber-900 px-1 flex items-center gap-1">
                 <i className="ph-bold ph-squares-four text-amber-600 text-sm"></i> {t("packSizeLabel")}:
               </span>
               <div className="flex items-center pl-0.5">
-                {numInput("packSize", "w-24", "border-amber-300 text-amber-900 placeholder:text-[11px] placeholder:font-normal focus:border-amber-500", t("writeCapacity"))}
+                {numInput("packSize", "w-24 border-amber-300 rounded-lg text-amber-900 placeholder:text-[11px] placeholder:font-normal focus:border-amber-500", "", t("writeCapacity"))}
               </div>
             </div>
-            <div className="flex items-center justify-between bg-white/80 border border-black/10 rounded-xl p-1.5 shadow-sm">
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-1.5 shadow-2xs">
               <span className="text-xs font-bold text-slate-700 px-1 flex items-center gap-1">
                 <i className="ph-bold ph-stack text-emerald-600 text-sm"></i> {t("loosePiecesCount")}:
               </span>
               <div className="flex items-center gap-1">
-                {stepBtn("loose", -1, "bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600", "ph-minus")}
-                {numInput("loose", "w-14", "border-slate-300", "0")}
-                {stepBtn("loose", 1, "bg-slate-100 hover:bg-emerald-50 hover:text-emerald-600 text-slate-600", "ph-plus")}
+                {stepBtn("loose", -1, "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-600 border border-slate-200", "ph-minus")}
+                {numInput("loose", "w-14 border-slate-200 rounded-lg", "", "0")}
+                {stepBtn("loose", 1, "bg-white hover:bg-emerald-50 hover:text-emerald-600 text-slate-600 border border-slate-200", "ph-plus")}
               </div>
             </div>
-            <div className="bg-slate-900 text-white p-2.5 rounded-xl shadow-md flex items-center justify-between">
+            <div className="bg-slate-900 text-white p-2.5 rounded-2xl shadow-md flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-bold text-slate-400 block leading-none">{t("actualTotal")}</span>
                 <span className="text-[10px] text-amber-400 font-mono">{formulaText}</span>
@@ -1112,6 +1431,28 @@ function ProductCard({
             </div>
           </>
         )}
+
+        {/* Order Cart Action Button */}
+        <button
+          onClick={() => onOrder(p.id)}
+          className={`w-full py-2.5 px-3 rounded-2xl font-bold text-xs transition flex items-center justify-between shadow-sm ${
+            hasOrder
+              ? "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/25"
+              : "bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/80"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <i className="ph-bold ph-shopping-cart text-sm"></i>
+            <span>{hasOrder ? (lang === "en" ? "Order Added:" : "مطلوب لطلبية الغد:") : (lang === "en" ? "Add to Order" : "إضافة لقائمة الطلب")}</span>
+          </span>
+          {hasOrder ? (
+            <span className="bg-white/20 px-2 py-0.5 rounded-lg text-xs font-black">
+              {p.orderQty} {orderUnit === "CTN" ? (lang === "en" ? "CTN" : "كرتون") : orderUnit === "PKT" ? (lang === "en" ? "PKT" : "باكت") : (lang === "en" ? "PCS" : "حبة")}
+            </span>
+          ) : (
+            <span className="text-blue-600 font-black text-sm">+</span>
+          )}
+        </button>
       </div>
     </div>
   );
