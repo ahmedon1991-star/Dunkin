@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import type { Product, StockLog } from "@db/schema";
 import { useLanguage } from "@/providers/LanguageContext";
 import { trpc } from "@/providers/trpc";
+import { getProductImage, getCategoryFallbackImage } from "@/lib/productImages";
 
 export interface ProductStockHistoryModalProps {
   product: Product;
@@ -67,11 +68,18 @@ export function ProductStockHistoryModal({
       >
         {/* Header */}
         <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-blue-600/30 shrink-0">
-              <i className="ph-bold ph-clock-counter-clockwise"></i>
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-12 h-12 rounded-2xl overflow-hidden border border-slate-700 bg-slate-800 shrink-0 shadow-md">
+              <img
+                src={product.imageUrl || getProductImage(product)}
+                alt={productName}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = getCategoryFallbackImage(product.category);
+                }}
+              />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-bold">
                   #{product.code}

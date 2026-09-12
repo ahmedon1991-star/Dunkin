@@ -8,6 +8,7 @@ import { useAuth } from "@/providers/AuthContext";
 import { AdminRequestsPanel } from "@/components/AdminRequestsPanel";
 import { ProductStockHistoryModal, formatStockDateDetails } from "@/components/ProductStockHistoryModal";
 import { getMeta } from "@/lib/catMeta";
+import { getProductImage, getCategoryFallbackImage } from "@/lib/productImages";
 
 type AdminMenuTab = "products" | "branches" | "employees" | "requests" | "submissions" | "transfers";
 
@@ -504,17 +505,14 @@ export default function Admin() {
                                 >
                                   {/* Product Info & Image */}
                                   <div className="flex items-center gap-3 min-w-0">
-                                    {product.imageUrl ? (
-                                      <img
-                                        src={product.imageUrl}
-                                        alt={productName}
-                                        className="h-12 w-12 rounded-xl object-contain bg-white p-0.5 shrink-0 border border-slate-200"
-                                      />
-                                    ) : (
-                                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400 shrink-0">
-                                        <i className="ph-bold ph-image text-xl"></i>
-                                      </div>
-                                    )}
+                                    <img
+                                      src={product.imageUrl || getProductImage(product)}
+                                      alt={productName}
+                                      className="h-12 w-12 rounded-xl object-contain bg-white p-0.5 shrink-0 border border-slate-200"
+                                      onError={(e) => {
+                                        (e.currentTarget as HTMLImageElement).src = getCategoryFallbackImage(product.category);
+                                      }}
+                                    />
 
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap">

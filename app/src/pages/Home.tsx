@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { trpc } from "@/providers/trpc";
 import { getMeta, catMeta } from "@/lib/catMeta";
 import { uploadProductImage } from "@/lib/supabase";
+import { getProductImage, getCategoryFallbackImage } from "@/lib/productImages";
 import type { Product } from "@db/schema";
 import { useLanguage } from "@/providers/LanguageContext";
 import { useAuth } from "@/providers/AuthContext";
@@ -1411,22 +1412,38 @@ function ProductCard({
         </div>
 
         {/* Product Image preview - Centered Square */}
-        {p.imageUrl && (
-          <div className="flex justify-center my-2">
-            <div
-              className="w-32 h-32 sm:w-36 sm:h-36 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-2 flex items-center justify-center overflow-hidden cursor-pointer group/img shadow-2xs hover:shadow-md hover:border-blue-400/60 transition duration-200"
-              onClick={() => onOpenHistory(p)}
-              title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
-            >
-              <img
-                src={p.imageUrl}
-                alt={productName}
-                className="w-full h-full object-contain group-hover/img:scale-105 transition duration-300"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-              />
+        {(() => {
+          const displayImg = p.imageUrl || getProductImage(p);
+          return (
+            <div className="flex justify-center my-2">
+              <div
+                className="w-32 h-32 sm:w-36 sm:h-36 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-2 flex items-center justify-center overflow-hidden cursor-pointer group/img shadow-2xs hover:shadow-md hover:border-blue-400/60 transition duration-200 relative"
+                onClick={() => onOpenHistory(p)}
+                title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
+              >
+                <img
+                  src={displayImg}
+                  alt={productName}
+                  loading="lazy"
+                  className="w-full h-full object-cover rounded-xl group-hover/img:scale-105 transition duration-300"
+                  onError={(e) => {
+                    const target = e.currentTarget as HTMLImageElement;
+                    const fallback = getCategoryFallbackImage(p.category);
+                    if (target.src !== fallback) {
+                      target.src = fallback;
+                    }
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity rounded-2xl flex items-end justify-center pb-1.5">
+                  <span className="text-[10px] font-bold text-white bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <i className="ph-bold ph-eye"></i>
+                    {lang === "en" ? "Details" : "سجل الحركة"}
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Category Chip & Product Title */}
         <div
