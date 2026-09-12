@@ -93,17 +93,22 @@ export default function Admin() {
     });
   }, [products, search, selectedCat, getCategoryName]);
 
-  // Group filtered products by category
+  // Group filtered products by category in a single O(N) pass
   const groupedProducts = useMemo(() => {
-    const groups: { category: string; items: Product[] }[] = [];
-    const catsInFiltered = Array.from(new Set(filteredProducts.map((p) => p.category)));
-
-    for (const cat of catsInFiltered) {
-      groups.push({
-        category: cat,
-        items: filteredProducts.filter((p) => p.category === cat),
-      });
+    const map = new Map<string, Product[]>();
+    for (let i = 0; i < filteredProducts.length; i++) {
+      const p = filteredProducts[i];
+      let arr = map.get(p.category);
+      if (!arr) {
+        arr = [];
+        map.set(p.category, arr);
+      }
+      arr.push(p);
     }
+    const groups: { category: string; items: Product[] }[] = [];
+    map.forEach((items, category) => {
+      groups.push({ category, items });
+    });
     return groups;
   }, [filteredProducts]);
 
@@ -479,7 +484,11 @@ export default function Admin() {
                       const catName = getCategoryName(category);
 
                       return (
-                        <div key={category} className="rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                        <div
+                          key={category}
+                          className="rounded-2xl border border-slate-200 overflow-hidden shadow-sm"
+                          style={{ contentVisibility: "auto", containIntrinsicSize: "0 280px" }}
+                        >
                           {/* Category Header Banner */}
                           <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center justify-between">
                             <div className="flex items-center gap-2.5">

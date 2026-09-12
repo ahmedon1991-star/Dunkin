@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, useDeferredValue } from "react";
+import React from "react";
 import { useNavigate } from "react-router";
 import { trpc } from "@/providers/trpc";
 import { getMeta, catMeta } from "@/lib/catMeta";
@@ -119,7 +120,7 @@ export default function Home() {
 
   // Debounce direct typing; step buttons save immediately
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const patch = (id: number, fields: Fields, debounce = false) => {
+  const patch = useCallback((id: number, fields: Fields, debounce = false) => {
     const empName = session?.full_name || (session?.employee_id ? `موظف #${session.employee_id}` : "موظف الفرع");
     setItems((prev) => prev.map((p) => (p.id === id ? { ...p, ...fields } : p)));
     const run = () => updateMut.mutate({ id, updatedBy: empName, branchCode: selectedBranch, ...fields });
@@ -131,17 +132,44 @@ export default function Home() {
       clearTimeout(debounceTimers.current.get(key));
       run();
     }
-  };
+  }, [session?.full_name, session?.employee_id, selectedBranch, updateMut]);
 
-  const stepField = (p: Product, field: "qty" | "packs" | "loose", change: number) => {
+  const stepField = useCallback((p: Product, field: "qty" | "packs" | "loose", change: number) => {
     const next = Math.max(0, (p[field] ?? 0) + change);
     patch(p.id, { [field]: next } as Fields);
-  };
+  }, [patch]);
+
+  const handleOrder = useCallback((id: number) => {
+    const prod = items.find((x) => x.id === id);
+    setPromptQty(prod?.orderQty != null ? String(prod.orderQty) : "");
+    setPromptUnit(orderUnits[id] || (prod?.unitCode as any) || "CTN");
+    setPromptId(id);
+  }, [items, orderUnits]);
+
+  const handleCopyCode = useCallback((code: string) => {
+    navigator.clipboard.writeText(code);
+    notify((lang === "en" ? "Code copied: " : "تم نسخ الكود: ") + code);
+  }, [lang]);
+
+  const handleOpenHistory = useCallback((prod: Product) => {
+    setHistoryProduct(prod);
+  }, []);
 
   const categories = useMemo(() => Array.from(new Set(items.map((p) => p.category))), [items]);
 
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (let i = 0; i < items.length; i++) {
+      const c = items[i].category;
+      counts[c] = (counts[c] || 0) + 1;
+    }
+    return counts;
+  }, [items]);
+
+  const deferredSearch = useDeferredValue(search);
+
   const filtered = useMemo(() => {
-    const term = search.toLowerCase().trim();
+    const term = deferredSearch.toLowerCase().trim();
     return items.filter((p) => {
       const catEn = getCategoryName(p.category).toLowerCase();
       const mSearch =
@@ -155,7 +183,34 @@ export default function Home() {
       const mUnit = unitFilter === "ALL" || p.unitCode === unitFilter;
       return mSearch && mCat && mUnit;
     });
-  }, [items, search, selectedCat, unitFilter, getCategoryName]);
+  }, [items, deferredSearch, selectedCat, unitFilter, getCategoryName]);
+
+  const [visibleCount, setVisibleCount] = useState(36);
+
+  useEffect(() => {
+    setVisibleCount(36);
+  }, [selectedCat, unitFilter, deferredSearch]);
+
+  const displayedProducts = useMemo(() => {
+    if (selectedCat !== "ALL" || deferredSearch.trim() !== "") return filtered;
+    return filtered.slice(0, visibleCount);
+  }, [filtered, selectedCat, deferredSearch, visibleCount]);
+
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + 36, filtered.length));
+        }
+      },
+      { rootMargin: "400px" }
+    );
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [filtered.length]);
 
   const orderedItems = items.filter((p) => p.orderQty != null && p.orderQty > 0);
   const promptProd = promptId != null ? items.find((p) => p.id === promptId) : undefined;
@@ -781,7 +836,7 @@ export default function Home() {
               </TabButton>
               {categories.map((cat) => {
                 const meta = getMeta(cat);
-                const count = items.filter((p) => p.category === cat).length;
+                const count = categoryCounts[cat] ?? 0;
                 const active = selectedCat === cat;
                 const catName = getCategoryName(cat);
                 return (
@@ -814,28 +869,46 @@ export default function Home() {
               <h3 className="text-lg font-bold text-slate-700 mb-1">{t("searchNoResults")}</h3>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5">
-              {filtered.map((p) => (
-                <ProductCard
-                  key={p.id}
-                  p={p}
-                  orderUnit={orderUnits[p.id]}
-                  onPatch={patch}
-                  onStep={stepField}
-                  onOrder={(id) => {
-                    const prod = items.find((x) => x.id === id);
-                    setPromptQty(prod?.orderQty != null ? String(prod.orderQty) : "");
-                    setPromptUnit(orderUnits[id] || (prod?.unitCode as any) || "CTN");
-                    setPromptId(id);
-                  }}
-                  onCopyCode={(code) => {
-                    navigator.clipboard.writeText(code);
-                    notify((lang === 'en' ? 'Code copied: ' : 'تم نسخ الكود: ') + code);
-                  }}
-                  onOpenHistory={(prod) => setHistoryProduct(prod)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5">
+                {displayedProducts.map((p) => (
+                  <ProductCard
+                    key={p.id}
+                    p={p}
+                    orderUnit={orderUnits[p.id]}
+                    onPatch={patch}
+                    onStep={stepField}
+                    onOrder={handleOrder}
+                    onCopyCode={handleCopyCode}
+                    onOpenHistory={handleOpenHistory}
+                  />
+                ))}
+              </div>
+
+              {/* Progressive Load More indicator & trigger */}
+              {filtered.length > displayedProducts.length && (
+                <div className="flex flex-col items-center justify-center py-6 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => Math.min(prev + 36, filtered.length))}
+                    className="px-6 py-2.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs shadow-2xs hover:shadow-md transition flex items-center gap-2 cursor-pointer"
+                  >
+                    <i className="ph-bold ph-arrow-down text-blue-600"></i>
+                    <span>
+                      {lang === "en"
+                        ? `Load More Products (${filtered.length - displayedProducts.length} remaining)`
+                        : `عرض المزيد من المنتجات (متبقي ${filtered.length - displayedProducts.length} صنف)`}
+                    </span>
+                  </button>
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    {lang === "en"
+                      ? `Showing ${displayedProducts.length} of ${filtered.length} items`
+                      : `يتم عرض ${displayedProducts.length} من أصل ${filtered.length} صنف`}
+                  </p>
+                </div>
+              )}
+              <div ref={loadMoreRef} className="h-4" />
+            </>
           )}
         </main>
       </div>
@@ -1285,11 +1358,11 @@ export default function Home() {
   );
 }
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+const TabButton = React.memo(function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className={`whitespace-nowrap px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 ${
+      className={`whitespace-nowrap px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
         active
           ? "bg-slate-900 text-white shadow-md border border-transparent"
           : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50"
@@ -1298,9 +1371,9 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
       {children}
     </button>
   );
-}
+});
 
-function ProductCard({
+const ProductCard = React.memo(function ProductCard({
   p,
   orderUnit,
   onPatch,
@@ -1374,7 +1447,10 @@ function ProductCard({
   const unitName = getUnitName(p.unitCode, p.unitLabel);
 
   return (
-    <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 hover:border-blue-500/50 hover:shadow-lg transition-all duration-200 flex flex-col justify-between h-full relative group">
+    <div
+      className="bg-white rounded-2xl p-3.5 border border-slate-200/90 hover:border-blue-500/50 hover:shadow-lg transition-all duration-200 flex flex-col justify-between h-full relative group"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 340px" }}
+    >
       <div>
         {/* Top Header Row of the Card: Code, Unit, and Stock Status */}
         <div className="flex items-center justify-between gap-1.5 mb-2">
@@ -1616,7 +1692,7 @@ function ProductCard({
       </div>
     </div>
   );
-}
+});
 
 export function AddProductModal({
   title,
