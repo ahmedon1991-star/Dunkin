@@ -1410,19 +1410,21 @@ function ProductCard({
           )}
         </div>
 
-        {/* Product Image preview if available */}
+        {/* Product Image preview - Centered Square */}
         {p.imageUrl && (
-          <div
-            className="mb-2.5 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-2xs cursor-pointer relative group/img h-28 w-full flex items-center justify-center p-2"
-            onClick={() => onOpenHistory(p)}
-            title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
-          >
-            <img
-              src={p.imageUrl}
-              alt={productName}
-              className="max-h-full max-w-full object-contain group-hover/img:scale-105 transition duration-300"
-              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
+          <div className="flex justify-center my-2">
+            <div
+              className="w-32 h-32 sm:w-36 sm:h-36 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-2 flex items-center justify-center overflow-hidden cursor-pointer group/img shadow-2xs hover:shadow-md hover:border-blue-400/60 transition duration-200"
+              onClick={() => onOpenHistory(p)}
+              title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
+            >
+              <img
+                src={p.imageUrl}
+                alt={productName}
+                className="w-full h-full object-contain group-hover/img:scale-105 transition duration-300"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
           </div>
         )}
 
