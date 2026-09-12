@@ -1010,16 +1010,19 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
 
                           <button
                             onClick={() => {
+                              const isEn = lang === "en";
                               const printWindow = window.open("", "_blank", "width=900,height=750");
                               if (!printWindow) return;
+                              const fromName = getBranchName(t.fromBranchCode, t.fromBranchName);
+                              const toName = getBranchName(t.toBranchCode, t.toBranchName);
                               const rows = t.items
                                 .map(
                                   (i, idx) =>
-                                    `<tr><td>${idx + 1}</td><td>${i.code}</td><td><b>${i.nameAr}</b></td><td>${i.unit}</td><td>${i.requestedQty}</td><td>${i.adminApprovedQty ?? i.requestedQty}</td><td>${i.dispatchedQty ?? "-"}</td><td>${i.receivedQty ?? "-"}</td></tr>`
+                                    `<tr><td>${idx + 1}</td><td>${i.code}</td><td><b>${isEn ? (i.nameEn || i.nameAr) : i.nameAr}</b>${isEn && i.nameAr ? `<br><small style="color:#64748b">${i.nameAr}</small>` : (!isEn && i.nameEn ? `<br><small style="color:#64748b">${i.nameEn}</small>` : '')}</td><td>${i.unit}</td><td>${i.requestedQty}</td><td>${i.adminApprovedQty ?? i.requestedQty}</td><td>${i.dispatchedQty ?? "-"}</td><td>${i.receivedQty ?? "-"}</td></tr>`
                                 )
                                 .join("");
                               printWindow.document.write(`
-                                <html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>سند #${t.transferNo}</title><style>body{font-family:sans-serif;padding:30px}table{width:100%;border-collapse:collapse;margin-top:15px}th,td{border:1px solid #cbd5e1;padding:8px 12px;text-align:right}th{background:#f1f5f9}</style></head><body><h2>سند تحويل بضاعة بين الفروع #${t.transferNo}</h2><p>من: ${t.fromBranchName} إلى: ${t.toBranchName}</p><table><thead><tr><th>#</th><th>الكود</th><th>الصنف</th><th>الوحدة</th><th>المطلوب</th><th>معتمد الأدمن</th><th>المشحون</th><th>المستلم</th></tr></thead><tbody>${rows}</tbody></table></body></html>
+                                <html dir="${isEn ? 'ltr' : 'rtl'}" lang="${isEn ? 'en' : 'ar'}"><head><meta charset="utf-8"><title>${isEn ? `Branch Transfer #${t.transferNo}` : `سند #${t.transferNo}`}</title><style>body{font-family:sans-serif;padding:30px;direction:${isEn ? 'ltr' : 'rtl'}}table{width:100%;border-collapse:collapse;margin-top:15px}th,td{border:1px solid #cbd5e1;padding:8px 12px;text-align:${isEn ? 'left' : 'right'}}th{background:#f1f5f9}</style></head><body><h2>${isEn ? "Inter-Branch Cargo Transfer Voucher" : "سند تحويل بضاعة بين الفروع"} #${t.transferNo}</h2><p><b>${isEn ? "From" : "من"}:</b> ${fromName} (${t.fromBranchCode}) | <b>${isEn ? "To" : "إلى"}:</b> ${toName} (${t.toBranchCode})</p><table><thead><tr><th>#</th><th>${isEn ? "Item Code" : "الكود"}</th><th>${isEn ? "Product Name" : "الصنف"}</th><th>${isEn ? "Unit" : "الوحدة"}</th><th>${isEn ? "Requested" : "المطلوب"}</th><th>${isEn ? "Admin Approved" : "معتمد الأدمن"}</th><th>${isEn ? "Dispatched" : "المشحون"}</th><th>${isEn ? "Received" : "المستلم"}</th></tr></thead><tbody>${rows}</tbody></table></body></html>
                               `);
                               printWindow.document.close();
                               printWindow.focus();

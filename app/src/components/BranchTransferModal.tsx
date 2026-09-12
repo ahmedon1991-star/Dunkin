@@ -219,15 +219,38 @@ export function BranchTransferModal({
 
   // Print Transfer PDF
   const printTransferPdf = (t: BranchTransfer) => {
+    const isEn = lang === "en";
     const printWindow = window.open("", "_blank", "width=900,height=750");
     if (!printWindow) return;
+    const fromName = getBranchName(t.fromBranchCode, t.fromBranchName);
+    const toName = getBranchName(t.toBranchCode, t.toBranchName);
+
+    const getStatusText = (status: BranchTransfer["status"]) => {
+      switch (status) {
+        case "pending_admin_initial":
+          return isEn ? "1. Pending Admin Approval ⏳" : "1. بانتظار موافقة الأدمن ⏳";
+        case "approved_by_admin":
+          return isEn ? "2. Pending Branch Dispatch 📦" : "2. بانتظار تجهيز وشحن الفرع 📦";
+        case "dispatched_by_source":
+          return isEn ? "3. Dispatched (Pending Admin Verification) 🚚" : "3. تم الشحن (بانتظار اعتماد الأدمن) 🚚";
+        case "in_transit":
+          return isEn ? "4. In Transit - Ready to Receive 📥" : "4. الشحنة في الطريق - جاهزة للاستلام 📥";
+        case "completed":
+          return isEn ? "5. Completed & Archived in Stock 🟢" : "5. مكتمل ومؤرشف بالمخزون 🟢";
+        case "rejected":
+          return isEn ? "Rejected ❌" : "مرفوض ❌";
+        default:
+          return status;
+      }
+    };
+
     const rows = t.items
       .map(
         (i, idx) =>
           `<tr>
             <td>${idx + 1}</td>
             <td>${i.code}</td>
-            <td><b>${i.nameAr}</b><br><small>${i.nameEn || ""}</small></td>
+            <td><b>${isEn ? (i.nameEn || i.nameAr) : i.nameAr}</b>${isEn && i.nameAr ? `<br><small style="color:#64748b">${i.nameAr}</small>` : (!isEn && i.nameEn ? `<br><small style="color:#64748b">${i.nameEn}</small>` : '')}</td>
             <td>${i.unit}</td>
             <td>${i.requestedQty}</td>
             <td>${i.adminApprovedQty ?? i.requestedQty}</td>
@@ -240,25 +263,25 @@ export function BranchTransferModal({
     const timelineRows = t.timeline
       .map(
         (tl) =>
-          `<li><b>${new Date(tl.timestamp).toLocaleString("ar-EG")}</b> - <b>${tl.action}</b> (${tl.by} - ${tl.role}) ${
-            tl.notes ? `<br><i>ملاحظة: ${tl.notes}</i>` : ""
+          `<li><b>${new Date(tl.timestamp).toLocaleString(isEn ? "en-US" : "ar-EG")}</b> - <b>${tl.action}</b> (${tl.by} - ${tl.role}) ${
+            tl.notes ? `<br><i>${isEn ? "Note" : "ملاحظة"}: ${tl.notes}</i>` : ""
           }</li>`
       )
       .join("");
 
     printWindow.document.write(`
-      <html dir="rtl" lang="ar">
+      <html dir="${isEn ? 'ltr' : 'rtl'}" lang="${isEn ? 'en' : 'ar'}">
         <head>
           <meta charset="utf-8">
-          <title>سند تحويل بضاعة بين الفروع #${t.transferNo}</title>
+          <title>${isEn ? `Branch Transfer Voucher #${t.transferNo}` : `سند تحويل بضاعة بين الفروع #${t.transferNo}`}</title>
           <style>
-            body { font-family: system-ui, -apple-system, sans-serif; padding: 30px; color: #1e293b; }
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 30px; color: #1e293b; direction: ${isEn ? 'ltr' : 'rtl'}; }
             .header { border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
             .badge { background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
             .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; font-size: 13px; }
             .meta-item { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
             table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: right; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: ${isEn ? 'left' : 'right'}; }
             th { background: #f1f5f9; font-weight: bold; }
             .timeline { margin-top: 25px; padding-top: 15px; border-top: 1px dashed #cbd5e1; }
             ul { font-size: 12px; line-height: 1.8; }
@@ -267,33 +290,33 @@ export function BranchTransferModal({
         <body>
           <div class="header">
             <div>
-              <h2 style="margin:0;">سند تحويل بضاعة بين الفروع الرسمية</h2>
-              <p style="margin:4px 0 0 0; color:#64748b; font-size:13px;">دانكن دونتس - المملكة العربية السعودية</p>
+              <h2 style="margin:0;">${isEn ? "Official Inter-Branch Cargo Transfer Voucher" : "سند تحويل بضاعة بين الفروع الرسمية"}</h2>
+              <p style="margin:4px 0 0 0; color:#64748b; font-size:13px;">${isEn ? "Dunkin' - Kingdom of Saudi Arabia" : "دانكن دونتس - المملكة العربية السعودية"}</p>
             </div>
             <div>
-              <span class="badge">رقم المعاملة: ${t.transferNo}</span>
+              <span class="badge">${isEn ? "Transaction No:" : "رقم المعاملة:"} ${t.transferNo}</span>
             </div>
           </div>
 
           <div class="meta-grid">
-            <div class="meta-item"><b>الفرع الطالب (المستلم):</b> ${t.toBranchName} (${t.toBranchCode})<br><b>بواسطة:</b> ${t.requestedBy}</div>
-            <div class="meta-item"><b>الفرع المصدر (المرسل):</b> ${t.fromBranchName} (${t.fromBranchCode})<br><b>تاريخ الطلب:</b> ${new Date(t.requestedAt).toLocaleString("ar-EG")}</div>
-            <div class="meta-item"><b>حالة المعاملة:</b> ${t.status === "completed" ? "مكتمل ومؤرشف بنجاح ✅" : t.status}</div>
-            <div class="meta-item"><b>اعتماد الأدمن:</b> ${t.adminInitialBy || "معتمد"}</div>
+            <div class="meta-item"><b>${isEn ? "Requesting Branch (Destination):" : "الفرع الطالب (المستلم):"}</b> ${toName} (${t.toBranchCode})<br><b>${isEn ? "Requested By:" : "بواسطة:"}</b> ${t.requestedBy}</div>
+            <div class="meta-item"><b>${isEn ? "Source Branch (Shipper):" : "الفرع المصدر (المرسل):"}</b> ${fromName} (${t.fromBranchCode})<br><b>${isEn ? "Order Date:" : "تاريخ الطلب:"}</b> ${new Date(t.requestedAt).toLocaleString(isEn ? "en-US" : "ar-EG")}</div>
+            <div class="meta-item"><b>${isEn ? "Status:" : "حالة المعاملة:"}</b> ${getStatusText(t.status)}</div>
+            <div class="meta-item"><b>${isEn ? "Admin Verification:" : "اعتماد الأدمن:"}</b> ${t.adminInitialBy || (isEn ? "Verified" : "معتمد")}</div>
           </div>
 
-          <h3>قائمة الأصناف المحولة:</h3>
+          <h3>${isEn ? "Transferred Products List:" : "قائمة الأصناف المحولة:"}</h3>
           <table>
             <thead>
               <tr>
                 <th>#</th>
-                <th>كود الصنف</th>
-                <th>اسم المنتج</th>
-                <th>الوحدة</th>
-                <th>المطلوب</th>
-                <th>معتمد الأدمن</th>
-                <th>المشحون</th>
-                <th>المستلم</th>
+                <th>${isEn ? "Item Code" : "كود الصنف"}</th>
+                <th>${isEn ? "Product Name" : "اسم المنتج"}</th>
+                <th>${isEn ? "Unit" : "الوحدة"}</th>
+                <th>${isEn ? "Requested" : "المطلوب"}</th>
+                <th>${isEn ? "Admin Approved" : "معتمد الأدمن"}</th>
+                <th>${isEn ? "Dispatched" : "المشحون"}</th>
+                <th>${isEn ? "Received" : "المستلم"}</th>
               </tr>
             </thead>
             <tbody>
@@ -302,7 +325,7 @@ export function BranchTransferModal({
           </table>
 
           <div class="timeline">
-            <h4>سجل الحركات والاعتمادات الرسمية (Audit Trail):</h4>
+            <h4>${isEn ? "Official Audit Trail & Approvals:" : "سجل الحركات والاعتمادات الرسمية (Audit Trail):"}</h4>
             <ul>${timelineRows}</ul>
           </div>
         </body>
@@ -314,19 +337,20 @@ export function BranchTransferModal({
   };
 
   const getStatusBadge = (status: BranchTransfer["status"]) => {
+    const isEn = lang === "en";
     switch (status) {
       case "pending_admin_initial":
-        return <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs px-2.5 py-1 rounded-full font-bold">1. بانتظار موافقة الأدمن ⏳</span>;
+        return <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs px-2.5 py-1 rounded-full font-bold">{isEn ? "1. Pending Admin Approval ⏳" : "1. بانتظار موافقة الأدمن ⏳"}</span>;
       case "approved_by_admin":
-        return <span className="bg-blue-100 text-blue-900 border border-blue-300 text-xs px-2.5 py-1 rounded-full font-bold">2. بانتظار تجهيز وشحن الفرع 📦</span>;
+        return <span className="bg-blue-100 text-blue-900 border border-blue-300 text-xs px-2.5 py-1 rounded-full font-bold">{isEn ? "2. Pending Branch Dispatch 📦" : "2. بانتظار تجهيز وشحن الفرع 📦"}</span>;
       case "dispatched_by_source":
-        return <span className="bg-purple-100 text-purple-900 border border-purple-300 text-xs px-2.5 py-1 rounded-full font-bold">3. تم الشحن (بانتظار اعتماد الأدمن) 🚚</span>;
+        return <span className="bg-purple-100 text-purple-900 border border-purple-300 text-xs px-2.5 py-1 rounded-full font-bold">{isEn ? "3. Dispatched (Pending Admin) 🚚" : "3. تم الشحن (بانتظار اعتماد الأدمن) 🚚"}</span>;
       case "in_transit":
-        return <span className="bg-teal-100 text-teal-950 border border-teal-300 text-xs px-2.5 py-1 rounded-full font-bold animate-pulse">4. الشحنة في الطريق - جاهزة للاستلام 📥</span>;
+        return <span className="bg-teal-100 text-teal-950 border border-teal-300 text-xs px-2.5 py-1 rounded-full font-bold animate-pulse">{isEn ? "4. In Transit - Ready to Receive 📥" : "4. الشحنة في الطريق - جاهزة للاستلام 📥"}</span>;
       case "completed":
-        return <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs px-2.5 py-1 rounded-full font-bold">5. مكتمل ومؤرشف بالمخزون 🟢</span>;
+        return <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs px-2.5 py-1 rounded-full font-bold">{isEn ? "5. Completed & Archived 🟢" : "5. مكتمل ومؤرشف بالمخزون 🟢"}</span>;
       case "rejected":
-        return <span className="bg-rose-100 text-rose-900 border border-rose-300 text-xs px-2.5 py-1 rounded-full font-bold">مرفوض ❌</span>;
+        return <span className="bg-rose-100 text-rose-900 border border-rose-300 text-xs px-2.5 py-1 rounded-full font-bold">{isEn ? "Rejected ❌" : "مرفوض ❌"}</span>;
     }
   };
 
@@ -648,7 +672,7 @@ export function BranchTransferModal({
                     onClick={() => setActiveTab("create")}
                     className="mt-3 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl"
                   >
-                    + إنشاء طلب جديد
+                    {lang === "en" ? "+ Create New Request" : "+ إنشاء طلب جديد"}
                   </button>
                 </div>
               ) : (
@@ -663,7 +687,9 @@ export function BranchTransferModal({
                           {getStatusBadge(t.status)}
                         </div>
                         <h4 className="font-black text-slate-900 text-sm sm:text-base mt-1.5">
-                          {lang === "en" ? `Requested from: ${t.fromBranchName}` : `طلب تحويل من: ${t.fromBranchName}`}
+                          {lang === "en"
+                            ? `Requested from: ${getBranchName(t.fromBranchCode, t.fromBranchName)}`
+                            : `طلب تحويل من: ${getBranchName(t.fromBranchCode, t.fromBranchName)}`}
                         </h4>
                       </div>
 
@@ -687,8 +713,10 @@ export function BranchTransferModal({
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
                       {t.items.map((i, idx) => (
                         <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex justify-between items-center">
-                          <span className="font-bold text-slate-800 truncate flex-1">{i.nameAr}</span>
-                          <span className="font-black font-mono text-indigo-700 mr-2 bg-white px-2 py-0.5 rounded border border-slate-200">
+                          <span className="font-bold text-slate-800 truncate flex-1">
+                            {lang === "en" ? (i.nameEn || i.nameAr) : i.nameAr}
+                          </span>
+                          <span className="font-black font-mono text-indigo-700 mx-2 bg-white px-2 py-0.5 rounded border border-slate-200">
                             {i.requestedQty} {i.unit}
                           </span>
                         </div>
@@ -699,7 +727,7 @@ export function BranchTransferModal({
                     {t.adminInitialNotes && (
                       <div className="bg-blue-50 text-blue-900 border border-blue-200 p-2.5 rounded-xl text-xs flex items-center gap-2 font-semibold">
                         <i className="ph-bold ph-info text-blue-600"></i>
-                        <span>ملاحظة الأدمن: {t.adminInitialNotes}</span>
+                        <span>{lang === "en" ? `Admin Note: ${t.adminInitialNotes}` : `ملاحظة الأدمن: ${t.adminInitialNotes}`}</span>
                       </div>
                     )}
                   </div>
@@ -728,7 +756,9 @@ export function BranchTransferModal({
                           {getStatusBadge(t.status)}
                         </div>
                         <h4 className="font-black text-slate-900 text-sm sm:text-base mt-1.5">
-                          {lang === "en" ? `Destination: ${t.toBranchName}` : `الفرع الطالب المستلم: ${t.toBranchName}`}
+                          {lang === "en"
+                            ? `Destination: ${getBranchName(t.toBranchCode, t.toBranchName)}`
+                            : `الفرع الطالب المستلم: ${getBranchName(t.toBranchCode, t.toBranchName)}`}
                         </h4>
                       </div>
 
@@ -739,7 +769,7 @@ export function BranchTransferModal({
                             className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition shadow-md flex items-center gap-1.5"
                           >
                             <i className="ph-bold ph-package text-base"></i>
-                            <span>تجهيز وشحن البضاعة 🚚</span>
+                            <span>{lang === "en" ? "Dispatch & Ship Cargo 🚚" : "تجهيز وشحن البضاعة 🚚"}</span>
                           </button>
                         )}
                         <button
@@ -755,11 +785,11 @@ export function BranchTransferModal({
                       {t.items.map((i, idx) => (
                         <div key={idx} className="bg-amber-50/60 border border-amber-200 rounded-xl p-2.5 flex justify-between items-center">
                           <div>
-                            <span className="font-mono text-slate-500 ml-1">#{i.code}</span>
-                            <span className="font-bold text-slate-900">{i.nameAr}</span>
+                            <span className="font-mono text-slate-500 mx-1">#{i.code}</span>
+                            <span className="font-bold text-slate-900">{lang === "en" ? (i.nameEn || i.nameAr) : i.nameAr}</span>
                           </div>
                           <span className="font-black font-mono text-amber-950 bg-white px-2 py-0.5 rounded border border-amber-300">
-                            المعتمد: {i.adminApprovedQty ?? i.requestedQty} {i.unit}
+                            {lang === "en" ? "Approved:" : "المعتمد:"} {i.adminApprovedQty ?? i.requestedQty} {i.unit}
                           </span>
                         </div>
                       ))}
@@ -790,7 +820,9 @@ export function BranchTransferModal({
                           {getStatusBadge(t.status)}
                         </div>
                         <h4 className="font-black text-slate-900 text-sm sm:text-base mt-1.5">
-                          {lang === "en" ? `Arrived from: ${t.fromBranchName}` : `شحنة واصلة من فرع: ${t.fromBranchName}`}
+                          {lang === "en"
+                            ? `Arrived from: ${getBranchName(t.fromBranchCode, t.fromBranchName)}`
+                            : `شحنة واصلة من فرع: ${getBranchName(t.fromBranchCode, t.fromBranchName)}`}
                         </h4>
                       </div>
 
@@ -800,7 +832,7 @@ export function BranchTransferModal({
                           className="bg-teal-600 hover:bg-teal-700 text-white font-black text-xs px-4 py-2 rounded-xl transition shadow-lg shadow-teal-600/30 flex items-center gap-1.5"
                         >
                           <i className="ph-bold ph-package-receive text-base"></i>
-                          <span>فحص واستلام البضاعة 📥</span>
+                          <span>{lang === "en" ? "Inspect & Receive Cargo 📥" : "فحص واستلام البضاعة 📥"}</span>
                         </button>
                         <button
                           onClick={() => printTransferPdf(t)}
@@ -814,9 +846,11 @@ export function BranchTransferModal({
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
                       {t.items.map((i, idx) => (
                         <div key={idx} className="bg-teal-50/60 border border-teal-200 rounded-xl p-2.5 flex justify-between items-center">
-                          <span className="font-bold text-slate-900 truncate flex-1">{i.nameAr}</span>
-                          <span className="font-black font-mono text-teal-950 mr-2 bg-white px-2 py-0.5 rounded border border-teal-300">
-                            المشحون: {i.dispatchedQty ?? i.requestedQty} {i.unit}
+                          <span className="font-bold text-slate-900 truncate flex-1">
+                            {lang === "en" ? (i.nameEn || i.nameAr) : i.nameAr}
+                          </span>
+                          <span className="font-black font-mono text-teal-950 mx-2 bg-white px-2 py-0.5 rounded border border-teal-300">
+                            {lang === "en" ? "Shipped:" : "المشحون:"} {i.dispatchedQty ?? i.requestedQty} {i.unit}
                           </span>
                         </div>
                       ))}
@@ -850,7 +884,7 @@ export function BranchTransferModal({
                           </span>
                         </div>
                         <h4 className="font-black text-slate-900 text-sm sm:text-base mt-1.5">
-                          {t.fromBranchName} ➔ {t.toBranchName}
+                          {getBranchName(t.fromBranchCode, t.fromBranchName)} ➔ {getBranchName(t.toBranchCode, t.toBranchName)}
                         </h4>
                       </div>
 
@@ -871,10 +905,10 @@ export function BranchTransferModal({
                     </div>
 
                     <div className="text-xs text-slate-500 font-medium">
-                      <span>الأصناف المحولة ({t.items.length}): </span>
+                      <span>{lang === "en" ? `Transferred Items (${t.items.length}):` : `الأصناف المحولة (${t.items.length}):`} </span>
                       {t.items.map((i, idx) => (
-                        <span key={idx} className="inline-block bg-slate-100 px-2 py-0.5 rounded ml-1 text-slate-700 font-bold">
-                          {i.nameAr} ({i.receivedQty ?? i.dispatchedQty} {i.unit})
+                        <span key={idx} className="inline-block bg-slate-100 px-2 py-0.5 rounded mx-1 text-slate-700 font-bold">
+                          {lang === "en" ? (i.nameEn || i.nameAr) : i.nameAr} ({i.receivedQty ?? i.dispatchedQty} {i.unit})
                         </span>
                       ))}
                     </div>
@@ -894,29 +928,35 @@ export function BranchTransferModal({
               <div>
                 <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                   <i className="ph-bold ph-package text-amber-600 text-lg"></i>
-                  <span>تجهيز وشحن البضاعة للفرع الطالب</span>
+                  <span>{lang === "en" ? "Prepare & Dispatch Cargo to Requesting Branch" : "تجهيز وشحن البضاعة للفرع الطالب"}</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  الفرع المستلم: <b>{fulfillingTransfer.toBranchName}</b>
+                  {lang === "en" ? "Destination Branch:" : "الفرع المستلم:"} <b>{getBranchName(fulfillingTransfer.toBranchCode, fulfillingTransfer.toBranchName)}</b>
                 </p>
               </div>
               <button onClick={() => setFulfillingTransfer(null)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">✕</button>
             </div>
 
             <div className="bg-amber-50 text-amber-900 border border-amber-200 p-3 rounded-2xl text-xs font-semibold">
-              💡 يمكنك تعديل الكمية المتوفرة فعلياً للشحن إذا كان المتوفر في مخزنك أقل من المطلوب.
+              {lang === "en"
+                ? "💡 You can adjust the actually available quantity for dispatch if your branch stock is less than requested."
+                : "💡 يمكنك تعديل الكمية المتوفرة فعلياً للشحن إذا كان المتوفر في مخزنك أقل من المطلوب."}
             </div>
 
             <div className="space-y-2.5 max-h-60 overflow-y-auto">
               {fulfillingTransfer.items.map((i, idx) => (
                 <div key={idx} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl flex items-center justify-between text-xs">
                   <div>
-                    <span className="font-mono text-slate-500 font-bold ml-1">#{i.code}</span>
-                    <span className="font-black text-slate-900">{i.nameAr}</span>
-                    <div className="text-[11px] text-slate-500 mt-0.5">المعتمد من الأدمن: {i.adminApprovedQty ?? i.requestedQty} {i.unit}</div>
+                    <span className="font-mono text-slate-500 font-bold mx-1">#{i.code}</span>
+                    <span className="font-black text-slate-900">{lang === "en" ? (i.nameEn || i.nameAr) : i.nameAr}</span>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      {lang === "en" ? "Approved by Admin:" : "المعتمد من الأدمن:"} {i.adminApprovedQty ?? i.requestedQty} {i.unit}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <label className="font-bold text-slate-600">المشحون فعلياً:</label>
+                    <label className="font-bold text-slate-600">
+                      {lang === "en" ? "Actually Shipped:" : "المشحون فعلياً:"}
+                    </label>
                     <input
                       type="number"
                       min={0}
@@ -933,12 +973,14 @@ export function BranchTransferModal({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">ملاحظات التجهيز والشحن:</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">
+                {lang === "en" ? "Dispatch & Shipping Notes:" : "ملاحظات التجهيز والشحن:"}
+              </label>
               <input
                 type="text"
                 value={dispatchNotes}
                 onChange={(e) => setDispatchNotes(e.target.value)}
-                placeholder="مثال: تم تغليف البضاعة وتسليمها للمندوب"
+                placeholder={lang === "en" ? "e.g. Items packed and handed to courier" : "مثال: تم تغليف البضاعة وتسليمها للمندوب"}
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-xs font-bold"
               />
             </div>
@@ -949,7 +991,7 @@ export function BranchTransferModal({
                 onClick={() => setFulfillingTransfer(null)}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-xs"
               >
-                إلغاء
+                {lang === "en" ? "Cancel" : "إلغاء"}
               </button>
               <button
                 type="button"
@@ -958,7 +1000,7 @@ export function BranchTransferModal({
                 className="flex-[2] bg-amber-500 hover:bg-amber-600 text-slate-950 font-black py-3 rounded-xl text-xs shadow-md flex items-center justify-center gap-1.5"
               >
                 <i className="ph-bold ph-truck"></i>
-                <span>{dispatchMut.isPending ? "جاري الشحن..." : "تأكيد التجهيز وإرسال للأدمن 🚚"}</span>
+                <span>{dispatchMut.isPending ? (lang === "en" ? "Shipping..." : "جاري الشحن...") : (lang === "en" ? "Confirm Dispatch & Submit to Admin 🚚" : "تأكيد التجهيز وإرسال للأدمن 🚚")}</span>
               </button>
             </div>
           </div>
@@ -973,17 +1015,19 @@ export function BranchTransferModal({
               <div>
                 <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                   <i className="ph-bold ph-package-receive text-teal-600 text-lg"></i>
-                  <span>فحص واستلام البضاعة وتوريدها للمخزون</span>
+                  <span>{lang === "en" ? "Inspect & Receive Cargo into Stock" : "فحص واستلام البضاعة وتوريدها للمخزون"}</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  شحنة واردة من: <b>{receivingTransfer.fromBranchName}</b>
+                  {lang === "en" ? "Incoming shipment from:" : "شحنة واردة من:"} <b>{getBranchName(receivingTransfer.fromBranchCode, receivingTransfer.fromBranchName)}</b>
                 </p>
               </div>
               <button onClick={() => setReceivingTransfer(null)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">✕</button>
             </div>
 
             <div className="bg-teal-50 text-teal-900 border border-teal-200 p-3 rounded-2xl text-xs font-semibold">
-              📥 عند التأكيد، ستتم **إضافة** الكميات المستلمة إلى مخزون فرعكم، و**خصمها** من الفرع المصدر وترحيل المعاملة للأرشيف.
+              {lang === "en"
+                ? "📥 Upon confirmation, received quantities will be ADDED to your branch stock, DEDUCTED from source branch stock, and archived."
+                : "📥 عند التأكيد، ستتم **إضافة** الكميات المستلمة إلى مخزون فرعكم، و**خصمها** من الفرع المصدر وترحيل المعاملة للأرشيف."}
             </div>
 
             <div className="space-y-2.5 max-h-60 overflow-y-auto">
@@ -997,11 +1041,11 @@ export function BranchTransferModal({
                   <div key={idx} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl space-y-2 text-xs">
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="font-mono text-slate-500 font-bold ml-1">#{i.code}</span>
-                        <span className="font-black text-slate-900">{i.nameAr}</span>
+                        <span className="font-mono text-slate-500 font-bold mx-1">#{i.code}</span>
+                        <span className="font-black text-slate-900">{lang === "en" ? (i.nameEn || i.nameAr) : i.nameAr}</span>
                       </div>
                       <span className="font-black text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
-                        المشحون: {i.dispatchedQty ?? i.requestedQty} {i.unit}
+                        {lang === "en" ? "Shipped:" : "المشحون:"} {i.dispatchedQty ?? i.requestedQty} {i.unit}
                       </span>
                     </div>
 
@@ -1019,7 +1063,7 @@ export function BranchTransferModal({
                             state.status === "received_full" ? "bg-teal-600 text-white" : "bg-white border text-teal-700"
                           }`}
                         >
-                          وصل بالكامل
+                          {lang === "en" ? "Received Full" : "وصل بالكامل"}
                         </button>
                         <button
                           type="button"
@@ -1033,12 +1077,12 @@ export function BranchTransferModal({
                             state.status === "not_received" ? "bg-rose-600 text-white" : "bg-white border text-rose-700"
                           }`}
                         >
-                          لم يصل
+                          {lang === "en" ? "Not Received" : "لم يصل"}
                         </button>
                       </div>
 
                       <div className="flex items-center gap-1">
-                        <label className="font-bold text-slate-600">المستلم:</label>
+                        <label className="font-bold text-slate-600">{lang === "en" ? "Received:" : "المستلم:"}</label>
                         <input
                           type="number"
                           min={0}
@@ -1064,12 +1108,14 @@ export function BranchTransferModal({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">ملاحظات الاستلام:</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">
+                {lang === "en" ? "Receiving Notes:" : "ملاحظات الاستلام:"}
+              </label>
               <input
                 type="text"
                 value={receiveNotes}
                 onChange={(e) => setReceiveNotes(e.target.value)}
-                placeholder="مثال: تم الاستلام بحالة ممتازة ومطابقة للأمر"
+                placeholder={lang === "en" ? "e.g. Received in excellent condition matching order" : "مثال: تم الاستلام بحالة ممتازة ومطابقة للأمر"}
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-xs font-bold"
               />
             </div>
@@ -1080,7 +1126,7 @@ export function BranchTransferModal({
                 onClick={() => setReceivingTransfer(null)}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-xs"
               >
-                إلغاء
+                {lang === "en" ? "Cancel" : "إلغاء"}
               </button>
               <button
                 type="button"
@@ -1089,7 +1135,7 @@ export function BranchTransferModal({
                 className="flex-[2] bg-teal-600 hover:bg-teal-700 text-white font-black py-3 rounded-xl text-xs shadow-lg shadow-teal-600/30 flex items-center justify-center gap-1.5"
               >
                 <i className="ph-bold ph-check-circle"></i>
-                <span>{receiveMut.isPending ? "جاري التوريد للمخزون..." : "تأكيد الاستلام وتوريد المخزون 🟢"}</span>
+                <span>{receiveMut.isPending ? (lang === "en" ? "Receiving into stock..." : "جاري التوريد للمخزون...") : (lang === "en" ? "Confirm Receipt & Update Stock 🟢" : "تأكيد الاستلام وتوريد المخزون 🟢")}</span>
               </button>
             </div>
           </div>
@@ -1109,30 +1155,32 @@ export function BranchTransferModal({
                   {getStatusBadge(selectedTransferForView.status)}
                 </div>
                 <h3 className="text-base font-black text-slate-900 mt-1">
-                  {selectedTransferForView.fromBranchName} ➔ {selectedTransferForView.toBranchName}
+                  {getBranchName(selectedTransferForView.fromBranchCode, selectedTransferForView.fromBranchName)} ➔ {getBranchName(selectedTransferForView.toBranchCode, selectedTransferForView.toBranchName)}
                 </h3>
               </div>
               <button onClick={() => setSelectedTransferForView(null)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">✕</button>
             </div>
 
             <div className="space-y-2">
-              <h4 className="text-xs font-black text-slate-700">الأصناف المحولة:</h4>
+              <h4 className="text-xs font-black text-slate-700">
+                {lang === "en" ? "Transferred Products:" : "الأصناف المحولة:"}
+              </h4>
               <div className="border border-slate-200 rounded-2xl overflow-hidden text-xs">
-                <table className="w-full text-right">
+                <table className={`w-full ${lang === "en" ? "text-left" : "text-right"}`}>
                   <thead className="bg-slate-100 text-slate-600 font-bold">
                     <tr>
-                      <th className="p-2.5">الصنف</th>
-                      <th className="p-2.5">الوحدة</th>
-                      <th className="p-2.5">المطلوب</th>
-                      <th className="p-2.5">معتمد الأدمن</th>
-                      <th className="p-2.5">المشحون</th>
-                      <th className="p-2.5">المستلم</th>
+                      <th className="p-2.5">{lang === "en" ? "Product" : "الصنف"}</th>
+                      <th className="p-2.5">{lang === "en" ? "Unit" : "الوحدة"}</th>
+                      <th className="p-2.5">{lang === "en" ? "Requested" : "المطلوب"}</th>
+                      <th className="p-2.5">{lang === "en" ? "Admin Approved" : "معتمد الأدمن"}</th>
+                      <th className="p-2.5">{lang === "en" ? "Dispatched" : "المشحون"}</th>
+                      <th className="p-2.5">{lang === "en" ? "Received" : "المستلم"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold">
                     {selectedTransferForView.items.map((i, idx) => (
                       <tr key={idx}>
-                        <td className="p-2.5">{i.nameAr}</td>
+                        <td className="p-2.5">{lang === "en" ? (i.nameEn || i.nameAr) : i.nameAr}</td>
                         <td className="p-2.5">{i.unit}</td>
                         <td className="p-2.5 font-mono">{i.requestedQty}</td>
                         <td className="p-2.5 font-mono text-blue-700">{i.adminApprovedQty ?? i.requestedQty}</td>
@@ -1146,14 +1194,16 @@ export function BranchTransferModal({
             </div>
 
             <div className="space-y-2 pt-2">
-              <h4 className="text-xs font-black text-slate-700">سجل الحركات الزمني (Audit Timeline):</h4>
+              <h4 className="text-xs font-black text-slate-700">
+                {lang === "en" ? "Audit Trail & Approvals History:" : "سجل الحركات الزمني (Audit Timeline):"}
+              </h4>
               <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 space-y-3 text-xs">
                 {selectedTransferForView.timeline.map((tl, idx) => (
-                  <div key={idx} className="flex items-start gap-2 border-r-2 border-indigo-500 pr-3">
+                  <div key={idx} className={`flex items-start gap-2 ${lang === "en" ? "border-l-2 pl-3" : "border-r-2 pr-3"} border-indigo-500`}>
                     <div>
                       <div className="font-black text-slate-900">{tl.action}</div>
-                      <div className="text-slate-500 text-[11px]">{tl.by} ({tl.role}) • {new Date(tl.timestamp).toLocaleString("ar-EG")}</div>
-                      {tl.notes && <div className="text-slate-700 text-[11px] mt-0.5 bg-white p-1.5 rounded border border-slate-200 font-medium">ملاحظة: {tl.notes}</div>}
+                      <div className="text-slate-500 text-[11px]">{tl.by} ({tl.role}) • {new Date(tl.timestamp).toLocaleString(lang === "en" ? "en-US" : "ar-EG")}</div>
+                      {tl.notes && <div className="text-slate-700 text-[11px] mt-0.5 bg-white p-1.5 rounded border border-slate-200 font-medium">{lang === "en" ? "Note" : "ملاحظة"}: {tl.notes}</div>}
                     </div>
                   </div>
                 ))}
@@ -1166,14 +1216,14 @@ export function BranchTransferModal({
                 onClick={() => printTransferPdf(selectedTransferForView)}
                 className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1"
               >
-                <i className="ph-bold ph-file-pdf"></i> طباعة السند PDF
+                <i className="ph-bold ph-file-pdf"></i> {lang === "en" ? "Print Voucher PDF" : "طباعة السند PDF"}
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedTransferForView(null)}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-6 py-2.5 rounded-xl text-xs"
               >
-                إغلاق
+                {lang === "en" ? "Close" : "إغلاق"}
               </button>
             </div>
           </div>
