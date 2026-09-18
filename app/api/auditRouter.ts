@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createRouter, publicQuery, protectedProcedure, adminProcedure } from "./middleware";
+import { createRouter, publicQuery, publicProcedure, protectedProcedure, adminProcedure } from "./middleware";
 import {
   createAudit,
   listAudits,
@@ -21,8 +21,8 @@ const auditItemSchema = z.object({
 });
 
 export const auditRouter = createRouter({
-  /** إنشاء جرد جديد (مسودة) - يتطلب تسجيل دخول */
-  create: protectedProcedure
+  /** إنشاء جرد جديد (مسودة) */
+  create: publicProcedure
     .input(
       z.object({
         auditType: z.enum(["weekly", "monthly"]),
@@ -48,8 +48,8 @@ export const auditRouter = createRouter({
       return { audit, items };
     }),
 
-  /** حفظ / تحديث البنود كمسودة - يتطلب تسجيل دخول */
-  saveDraft: protectedProcedure
+  /** حفظ / تحديث البنود كمسودة */
+  saveDraft: publicProcedure
     .input(
       z.object({
         auditId: z.number().int(),
@@ -62,8 +62,8 @@ export const auditRouter = createRouter({
       return { ok: true };
     }),
 
-  /** اعتماد الجرد نهائياً - يتطلب تسجيل دخول */
-  finalize: protectedProcedure
+  /** اعتماد الجرد نهائياً */
+  finalize: publicProcedure
     .input(
       z.object({
         auditId: z.number().int(),
