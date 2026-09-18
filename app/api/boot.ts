@@ -67,7 +67,8 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 
-app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
+// تقييد حجم البيانات المرسلة لحماية السيرفر من هجمات حجب الخدمة واستهلاك الذاكرة (DoS)
+app.use(bodyLimit({ maxSize: 10 * 1024 * 1024 }));
 app.use("/api/trpc/*", async (c) => {
   return fetchRequestHandler({
     endpoint: "/api/trpc",

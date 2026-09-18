@@ -86,7 +86,8 @@ export const inventoryRouter = createRouter({
       return res;
     }),
 
-  stockLogs: publicQuery
+  /** سجل الحركات والتعديلات على المخزون - يتطلب تسجيل دخول */
+  stockLogs: protectedProcedure
     .input(z.object({ productId: z.number().optional() }).optional())
     .query(({ input }) => getStockLogs(input?.productId)),
 
@@ -147,8 +148,8 @@ export const inventoryRouter = createRouter({
       return { ok: true };
     }),
 
-  /** تصفير المخزون: متاح لتصفير المخزون بالكامل للبدء بجرد حقيقي */
-  resetAll: publicQuery.mutation(async () => {
+  /** تصفير المخزون: مخصص لمدير النظام (الأدمن) فقط لمنع العبث ببيانات الجرد */
+  resetAll: adminProcedure.mutation(async () => {
     await resetAllStock();
     return { ok: true };
   }),
@@ -314,8 +315,8 @@ export const inventoryRouter = createRouter({
       });
     }),
 
-  /** إغلاق وأرشفة المعاملة ونقلها إلى المعاملات السابقة */
-  closeOrArchiveTransfer: publicProcedure
+  /** إغلاق وأرشفة المعاملة ونقلها إلى المعاملات السابقة - يتطلب تسجيل دخول */
+  closeOrArchiveTransfer: protectedProcedure
     .input(
       z.object({
         id: z.string().min(1),
