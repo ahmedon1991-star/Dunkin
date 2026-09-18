@@ -60,6 +60,9 @@ export function BranchTransferModal({
   const transfersQuery = trpc.inventory.listTransfers.useQuery();
   const allTransfers = transfersQuery.data ?? [];
 
+  // Filter transfers search state
+  const [transferSearch, setTransferSearch] = useState("");
+
   // Mutations
   const createMut = trpc.inventory.createTransfer.useMutation({
     onSuccess: () => {
@@ -86,6 +89,13 @@ export function BranchTransferModal({
     },
   });
 
+  const closeTransferMut = trpc.inventory.closeOrArchiveTransfer.useMutation({
+    onSuccess: () => {
+      utils.inventory.listTransfers.invalidate();
+      setSelectedTransferForView(null);
+    },
+  });
+
   if (!isOpen) return null;
 
   // Filter transfers for current branch
@@ -97,6 +107,24 @@ export function BranchTransferModal({
   const myArchive = allTransfers.filter(
     (t) => (t.toBranchCode === selectedBranch || t.fromBranchCode === selectedBranch) && (t.status === "completed" || t.status === "rejected")
   );
+
+  const filterTransfer = (t: BranchTransfer) => {
+    if (!transferSearch.trim()) return true;
+    const q = transferSearch.trim().toLowerCase();
+    const matchNo = (t.transferNo || "").toLowerCase().includes(q);
+    const matchFrom = (t.fromBranchName || "").toLowerCase().includes(q) || (t.fromBranchCode || "").toLowerCase().includes(q);
+    const matchTo = (t.toBranchName || "").toLowerCase().includes(q) || (t.toBranchCode || "").toLowerCase().includes(q);
+    const matchEmp = (t.requestedBy || "").toLowerCase().includes(q) || (t.requestedById || "").toLowerCase().includes(q);
+    const matchItems = t.items.some(
+      (i) => (i.nameAr || "").toLowerCase().includes(q) || (i.nameEn || "").toLowerCase().includes(q) || (i.code || "").toLowerCase().includes(q)
+    );
+    return matchNo || matchFrom || matchTo || matchEmp || matchItems;
+  };
+
+  const filteredOutgoing = myOutgoing.filter(filterTransfer);
+  const filteredIncomingFulfill = myIncomingFulfill.filter(filterTransfer);
+  const filteredInboundReceiving = myInboundReceiving.filter(filterTransfer);
+  const filteredArchive = myArchive.filter(filterTransfer);
 
   // Available source branches (exclude current)
   const availableSourceBranches = branchesList.filter((b) => b.branch_code !== selectedBranch);
@@ -473,7 +501,32 @@ export function BranchTransferModal({
         </div>
 
         {/* Content Area */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100/60">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100/60 space-y-4">
+          {/* Quick Search Bar for Transfers */}
+          {activeTab !== "create" && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-2xs">
+              <div className="relative">
+                <i className={`ph-bold ph-magnifying-glass absolute top-1/2 ${lang === 'ar' ? 'right-3.5' : 'left-3.5'} -translate-y-1/2 text-slate-400 text-base`}></i>
+                <input
+                  type="text"
+                  value={transferSearch}
+                  onChange={(e) => setTransferSearch(e.target.value)}
+                  placeholder={lang === "en" ? "Search by transfer #TR..., branch, or item name..." : "بحث برقم المعاملة (مثال: TR-2609-001) أو الفرع أو اسم الصنف..."}
+                  className={`w-full bg-slate-50 border border-slate-200 rounded-xl ${lang === 'ar' ? 'pr-10 pl-10' : 'pl-10 pr-10'} py-2.5 text-slate-800 font-bold focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition text-xs`}
+                />
+                {transferSearch && (
+                  <button
+                    onClick={() => setTransferSearch("")}
+                    className={`absolute top-1/2 ${lang === 'ar' ? 'left-3' : 'right-3'} -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1`}
+                    title="مسح البحث"
+                  >
+                    <i className="ph-bold ph-x text-sm"></i>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* TAB: CREATE NEW TRANSFER */}
           {activeTab === "create" && (
             <form onSubmit={handleCreateSubmit} className="space-y-5 max-w-3xl mx-auto">
@@ -522,77 +575,62 @@ export function BranchTransferModal({
                     type="text"
                     value={transferNotes}
                     onChange={(e) => setTransferNotes(e.target.value)}
-                    placeholder={lang === "en" ? "e.g. Urgent stock shortage for weekend peak" : "مثال: عجز طارئ في الأكواب لتغطية عطلة نهاية الأسبوع"}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-indigo-600"
+                    placeholder={lang === "en" ? "e.g. Urgent weekend stock replenishment" : "مثال: طلب عاجل لتغطية عجز عطلة نهاية الأسبوع"}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs font-bold"
                   />
                 </div>
               </div>
 
-              {/* Product Selection */}
+              {/* Step 2: Add Products */}
               <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                    <i className="ph-bold ph-shopping-bag text-indigo-600 text-lg"></i>
-                    <span>{lang === "en" ? "2. Add Products to Transfer:" : "2. إضافة الأصناف المطلوبة للتحويل:"}</span>
-                  </h3>
-                  <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                    {transferItems.length} {lang === "en" ? "Items Selected" : "أصناف مختارة"}
-                  </span>
-                </div>
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <i className="ph-bold ph-package text-indigo-600 text-lg"></i>
+                  <span>{lang === "en" ? "2. Add Products to Request:" : "2. إضافة الأصناف المطلوبة للتحويل:"}</span>
+                </h3>
 
-                {/* Search products to add */}
+                {/* Product Search Box */}
                 <div className="relative">
-                  <i className="ph-bold ph-magnifying-glass absolute top-3 right-3 text-slate-400"></i>
+                  <i className={`ph-bold ph-magnifying-glass absolute top-1/2 ${lang === 'ar' ? 'right-3' : 'left-3'} -translate-y-1/2 text-slate-400 text-sm`}></i>
                   <input
                     type="text"
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder={lang === "en" ? "Search catalog to add products..." : "ابحث في الأصناف بالاسم أو الكود لإضافتها للطلب..."}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl pr-9 pl-4 py-2.5 text-xs font-bold outline-none focus:border-indigo-600"
+                    placeholder={lang === "en" ? "Type product name or code to search..." : "ابحث باسم أو كود الصنف للإضافة..."}
+                    className={`w-full bg-slate-50 border border-slate-300 rounded-xl ${lang === 'ar' ? 'pr-9 pl-4' : 'pl-9 pr-4'} py-2 text-xs font-bold outline-none focus:border-indigo-600`}
                   />
                 </div>
 
+                {/* Search Results Dropdown */}
                 {productSearch.trim() && (
-                  <div className="max-h-48 overflow-y-auto space-y-1.5 border border-slate-200 rounded-xl p-2 bg-slate-50">
+                  <div className="max-h-56 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 bg-slate-50">
                     {allProducts
-                      .filter(
-                        (p) =>
-                          p.nameAr.includes(productSearch) ||
-                          (p.nameEn && p.nameEn.toLowerCase().includes(productSearch.toLowerCase())) ||
-                          p.code.includes(productSearch)
-                      )
-                      .slice(0, 8)
-                      .map((prod) => (
-                        <div key={prod.id} className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-200 text-xs">
-                          <div>
-                            <span className="font-mono text-blue-600 font-bold ml-2">#{prod.code}</span>
-                            <span className="font-bold text-slate-800">{getProductName(prod)}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
+                      .filter((p) => {
+                        const q = productSearch.toLowerCase();
+                        return p.code.toLowerCase().includes(q) || p.nameAr.toLowerCase().includes(q) || (p.nameEn && p.nameEn.toLowerCase().includes(q));
+                      })
+                      .slice(0, 10)
+                      .map((p) => {
+                        const currentInTransfer = transferItems.find((i) => i.code === p.code);
+                        return (
+                          <div key={p.code} className="p-2.5 flex items-center justify-between hover:bg-white transition text-xs">
+                            <div>
+                              <span className="font-mono text-blue-700 font-bold ml-1">#{p.code}</span>
+                              <span className="font-bold text-slate-800">{lang === "en" ? getProductName(p.nameAr, p.nameEn) : p.nameAr}</span>
+                              <span className="text-slate-400 mr-2">({p.unit})</span>
+                            </div>
                             <button
                               type="button"
-                              onClick={() => addItemToTransfer(prod, "كرتون 📦", 1)}
-                              className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-2 py-1 rounded-lg font-bold transition"
+                              onClick={() => {
+                                addItemToTransfer(p, p.unit, 1);
+                                setProductSearch("");
+                              }}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-3 py-1 rounded-lg text-xs transition"
                             >
-                              + كرتون 📦
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => addItemToTransfer(prod, "باكت 🗂️", 1)}
-                              className="bg-amber-50 hover:bg-amber-100 text-amber-700 px-2 py-1 rounded-lg font-bold transition"
-                            >
-                              + باكت 🗂️
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => addItemToTransfer(prod, "حبة 낱", 1)}
-                              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg font-bold transition"
-                            >
-                              + حبة 낱
+                              {currentInTransfer ? "+ إضافة المزيد" : "+ إضافة للطلب"}
                             </button>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                   </div>
                 )}
 
@@ -664,27 +702,36 @@ export function BranchTransferModal({
           {/* TAB: OUTGOING REQUESTS */}
           {activeTab === "outgoing" && (
             <div className="space-y-4">
-              {myOutgoing.length === 0 ? (
+              {filteredOutgoing.length === 0 ? (
                 <div className="py-16 text-center text-slate-400 font-bold bg-white rounded-3xl border border-dashed border-slate-200">
                   <i className="ph-bold ph-tray text-5xl text-slate-300 mb-2 block"></i>
-                  <p>{lang === "en" ? "No active outgoing transfer requests." : "لا توجد طلبات تحويل صادرة جارية حالياً من فرعكم."}</p>
-                  <button
-                    onClick={() => setActiveTab("create")}
-                    className="mt-3 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl"
-                  >
-                    {lang === "en" ? "+ Create New Request" : "+ إنشاء طلب جديد"}
-                  </button>
+                  <p>
+                    {transferSearch
+                      ? (lang === "en" ? "No outgoing transfers matching your search." : "لا توجد طلبات تحويل صادرة تطابق البحث.")
+                      : (lang === "en" ? "No active outgoing transfer requests." : "لا توجد طلبات تحويل صادرة جارية حالياً من فرعكم.")}
+                  </p>
+                  {!transferSearch && (
+                    <button
+                      onClick={() => setActiveTab("create")}
+                      className="mt-3 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl"
+                    >
+                      {lang === "en" ? "+ Create New Request" : "+ إنشاء طلب جديد"}
+                    </button>
+                  )}
                 </div>
               ) : (
-                myOutgoing.map((t) => (
-                  <div key={t.id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-3">
+                filteredOutgoing.map((t) => (
+                  <div key={t.id} className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded text-xs">
+                          <span className="font-mono font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded text-xs">
                             #{t.transferNo}
                           </span>
                           {getStatusBadge(t.status)}
+                          <span className="text-xs text-slate-400 font-normal">
+                            {new Date(t.requestedAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}
+                          </span>
                         </div>
                         <h4 className="font-black text-slate-900 text-sm sm:text-base mt-1.5">
                           {lang === "en"
@@ -693,7 +740,22 @@ export function BranchTransferModal({
                         </h4>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        {/* Close & Archive Transfer Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(lang === "en" ? `Are you sure you want to close and archive transfer #${t.transferNo}?` : `هل أنت متأكد من إغلاق المعاملة #${t.transferNo} ونقلها للأرشيف فوراً؟`)) {
+                              closeTransferMut.mutate({ id: t.id, closedBy: session?.full_name || "مستخدم الفرع" });
+                            }
+                          }}
+                          className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-2xs"
+                          title={lang === "en" ? "Close & move to archive" : "إغلاق المعاملة ونقلها للأرشيف"}
+                        >
+                          <i className="ph-bold ph-archive-box text-emerald-600"></i>
+                          <span>{lang === "en" ? "Archive 📁" : "إغلاق وأرشفة 📁"}</span>
+                        </button>
+
                         <button
                           onClick={() => setSelectedTransferForView(t)}
                           className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1"
@@ -739,14 +801,18 @@ export function BranchTransferModal({
           {/* TAB: INCOMING TO FULFILL (SOURCE BRANCH VIEW) */}
           {activeTab === "incoming" && (
             <div className="space-y-4">
-              {myIncomingFulfill.length === 0 ? (
+              {filteredIncomingFulfill.length === 0 ? (
                 <div className="py-16 text-center text-slate-400 font-bold bg-white rounded-3xl border border-dashed border-slate-200">
                   <i className="ph-bold ph-check-circle text-5xl text-emerald-400 mb-2 block"></i>
-                  <p>{lang === "en" ? "No pending fulfillments assigned to your branch!" : "لا توجد طلبات تحويل واردة معتمدة بانتظار تجهيزها وشحنها من فرعكم"}</p>
+                  <p>
+                    {transferSearch
+                      ? (lang === "en" ? "No incoming requests matching your search." : "لا توجد طلبات تجهيز تطابق البحث.")
+                      : (lang === "en" ? "No pending fulfillments assigned to your branch!" : "لا توجد طلبات تحويل واردة معتمدة بانتظار تجهيزها وشحنها من فرعكم")}
+                  </p>
                 </div>
               ) : (
-                myIncomingFulfill.map((t) => (
-                  <div key={t.id} className="bg-white border-2 border-amber-300/80 rounded-3xl p-5 shadow-sm space-y-3">
+                filteredIncomingFulfill.map((t) => (
+                  <div key={t.id} className="bg-white border-2 border-amber-300/80 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -762,7 +828,7 @@ export function BranchTransferModal({
                         </h4>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {t.status === "approved_by_admin" && (
                           <button
                             onClick={() => openFulfillModal(t)}
@@ -772,6 +838,12 @@ export function BranchTransferModal({
                             <span>{lang === "en" ? "Dispatch & Ship Cargo 🚚" : "تجهيز وشحن البضاعة 🚚"}</span>
                           </button>
                         )}
+                        <button
+                          onClick={() => setSelectedTransferForView(t)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1"
+                        >
+                          <i className="ph-bold ph-eye"></i> {lang === "en" ? "Details" : "التفاصيل"}
+                        </button>
                         <button
                           onClick={() => printTransferPdf(t)}
                           className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1"
@@ -803,14 +875,18 @@ export function BranchTransferModal({
           {/* TAB: INBOUND (SHIPPED & WAITING RECEIPT) */}
           {activeTab === "inbound" && (
             <div className="space-y-4">
-              {myInboundReceiving.length === 0 ? (
+              {filteredInboundReceiving.length === 0 ? (
                 <div className="py-16 text-center text-slate-400 font-bold bg-white rounded-3xl border border-dashed border-slate-200">
                   <i className="ph-bold ph-truck text-5xl text-slate-300 mb-2 block"></i>
-                  <p>{lang === "en" ? "No in-transit shipments waiting for receipt." : "لا توجد شحنات محولة في الطريق بانتظار استلامها حالياً."}</p>
+                  <p>
+                    {transferSearch
+                      ? (lang === "en" ? "No inbound shipments matching your search." : "لا توجد شحنات تطابق البحث.")
+                      : (lang === "en" ? "No in-transit shipments waiting for receipt." : "لا توجد شحنات محولة في الطريق بانتظار استلامها حالياً.")}
+                  </p>
                 </div>
               ) : (
-                myInboundReceiving.map((t) => (
-                  <div key={t.id} className="bg-white border-2 border-teal-400 rounded-3xl p-5 shadow-md space-y-4">
+                filteredInboundReceiving.map((t) => (
+                  <div key={t.id} className="bg-white border-2 border-teal-400 rounded-3xl p-4 sm:p-5 shadow-md space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -826,13 +902,19 @@ export function BranchTransferModal({
                         </h4>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <button
                           onClick={() => openReceivingModal(t)}
                           className="bg-teal-600 hover:bg-teal-700 text-white font-black text-xs px-4 py-2 rounded-xl transition shadow-lg shadow-teal-600/30 flex items-center gap-1.5"
                         >
                           <i className="ph-bold ph-package-receive text-base"></i>
                           <span>{lang === "en" ? "Inspect & Receive Cargo 📥" : "فحص واستلام البضاعة 📥"}</span>
+                        </button>
+                        <button
+                          onClick={() => setSelectedTransferForView(t)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1"
+                        >
+                          <i className="ph-bold ph-eye"></i> {lang === "en" ? "Details" : "التفاصيل"}
                         </button>
                         <button
                           onClick={() => printTransferPdf(t)}
@@ -864,14 +946,18 @@ export function BranchTransferModal({
           {/* TAB: ARCHIVE */}
           {activeTab === "archive" && (
             <div className="space-y-4">
-              {myArchive.length === 0 ? (
+              {filteredArchive.length === 0 ? (
                 <div className="py-16 text-center text-slate-400 font-bold bg-white rounded-3xl border border-dashed border-slate-200">
                   <i className="ph-bold ph-archive-box text-5xl text-slate-300 mb-2 block"></i>
-                  <p>{lang === "en" ? "No completed transfer records in archive." : "لا توجد معاملات تحويل مكتملة ومؤرشفة حالياً لفرعكم."}</p>
+                  <p>
+                    {transferSearch
+                      ? (lang === "en" ? "No archived transfers matching your search." : "لا توجد معاملات سابقة تطابق البحث.")
+                      : (lang === "en" ? "No completed transfer records in archive." : "لا توجد معاملات تحويل مكتملة ومؤرشفة حالياً لفرعكم.")}
+                  </p>
                 </div>
               ) : (
-                myArchive.map((t) => (
-                  <div key={t.id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-3">
+                filteredArchive.map((t) => (
+                  <div key={t.id} className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -1165,7 +1251,45 @@ export function BranchTransferModal({
               <h4 className="text-xs font-black text-slate-700">
                 {lang === "en" ? "Transferred Products:" : "الأصناف المحولة:"}
               </h4>
-              <div className="border border-slate-200 rounded-2xl overflow-hidden text-xs">
+
+              {/* Mobile Items View (< sm) */}
+              <div className="sm:hidden space-y-2">
+                {selectedTransferForView.items.map((i, idx) => (
+                  <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="min-w-0">
+                        <span className="font-mono text-blue-700 font-bold ml-1">#{i.code}</span>
+                        <span className="font-black text-slate-900">{lang === "en" ? (i.nameEn || i.nameAr) : i.nameAr}</span>
+                      </div>
+                      <span className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-600 shrink-0">
+                        {i.unit}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1 pt-1 border-t border-slate-200/70 text-center font-mono text-[11px]">
+                      <div className="bg-white p-1 rounded-lg border border-slate-200">
+                        <span className="block text-[9px] font-bold text-slate-400 font-sans">{lang === "en" ? "Req" : "المطلوب"}</span>
+                        <span className="font-black text-slate-800">{i.requestedQty}</span>
+                      </div>
+                      <div className="bg-blue-50/60 p-1 rounded-lg border border-blue-100">
+                        <span className="block text-[9px] font-bold text-blue-600 font-sans">{lang === "en" ? "Appr" : "المعتمد"}</span>
+                        <span className="font-black text-blue-800">{i.adminApprovedQty ?? i.requestedQty}</span>
+                      </div>
+                      <div className="bg-purple-50/60 p-1 rounded-lg border border-purple-100">
+                        <span className="block text-[9px] font-bold text-purple-600 font-sans">{lang === "en" ? "Ship" : "المشحون"}</span>
+                        <span className="font-black text-purple-800">{i.dispatchedQty ?? "-"}</span>
+                      </div>
+                      <div className="bg-emerald-50/60 p-1 rounded-lg border border-emerald-100">
+                        <span className="block text-[9px] font-bold text-emerald-600 font-sans">{lang === "en" ? "Recv" : "المستلم"}</span>
+                        <span className="font-black text-emerald-800">{i.receivedQty ?? "-"}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View (>= sm) */}
+              <div className="hidden sm:block border border-slate-200 rounded-2xl overflow-hidden text-xs">
                 <table className={`w-full ${lang === "en" ? "text-left" : "text-right"}`}>
                   <thead className="bg-slate-100 text-slate-600 font-bold">
                     <tr>
@@ -1210,7 +1334,24 @@ export function BranchTransferModal({
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2">
+              {/* Close & Archive Button */}
+              {selectedTransferForView.status !== "completed" && selectedTransferForView.status !== "rejected" && (
+                <button
+                  type="button"
+                  disabled={closeTransferMut.isPending}
+                  onClick={() => {
+                    if (window.confirm(lang === "en" ? `Are you sure you want to close and archive transfer #${selectedTransferForView.transferNo}?` : `هل تريد إغلاق هذه المعاملة #${selectedTransferForView.transferNo} ونقلها إلى المعاملات السابقة والمؤرشفة فوراً؟`)) {
+                      closeTransferMut.mutate({ id: selectedTransferForView.id, closedBy: session?.full_name || "مستخدم الفرع" });
+                    }
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/25 transition active:scale-95"
+                >
+                  <i className="ph-bold ph-archive-box text-base"></i>
+                  <span>{closeTransferMut.isPending ? (lang === "en" ? "Archiving..." : "جاري الأرشفة...") : (lang === "en" ? "Close & Archive 📁" : "إغلاق المعاملة ونقلها للأرشيف 📁")}</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => printTransferPdf(selectedTransferForView)}

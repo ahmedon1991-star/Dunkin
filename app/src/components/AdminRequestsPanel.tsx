@@ -55,6 +55,8 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
   // Inter-Branch Transfer State
   const transfersQuery = trpc.inventory.listTransfers.useQuery();
   const allTransfers = transfersQuery.data ?? [];
+  const [transferMainTab, setTransferMainTab] = useState<"active" | "archive">("active");
+  const [transferSearch, setTransferSearch] = useState<string>("");
   const [transferFilterStatus, setTransferFilterStatus] = useState<string>("ALL");
   const [transferFilterBranch, setTransferFilterBranch] = useState<string>("ALL");
   const [adminReviewingTransfer, setAdminReviewingTransfer] = useState<BranchTransfer | null>(null);
@@ -83,6 +85,16 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
       setAdminReviewingTransfer(null);
       notify(lang === "en" ? "Transfer rejected" : "تم رفض طلب التحويل");
     },
+  });
+
+  const closeTransferMut = trpc.inventory.closeOrArchiveTransfer.useMutation({
+    onSuccess: () => {
+      transfersQuery.refetch();
+      notify(lang === "en" ? "Transfer closed and moved to archive successfully! 📁" : "تم إغلاق المعاملة ونقلها إلى سجل المعاملات السابقة والمؤرشفة بنجاح! 📁");
+    },
+    onError: () => {
+      notify(lang === "en" ? "Failed to close transfer" : "تعذر إغلاق وأرشفة المعاملة");
+    }
   });
 
   // Transfer Employee Modal State
@@ -814,115 +826,226 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
       )}
 
       {/* Tab 5: Inter-Branch Transfers (التحويلات بين الفروع) */}
-      {tabToRender === "transfers" && (
-        <div className="space-y-6">
-          {/* Top Transfer Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center">
-              <span className="block text-xs font-bold text-slate-500 mb-1">إجمالي المعاملات</span>
-              <span className="text-xl font-black font-mono text-slate-800">{allTransfers.length}</span>
-            </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
-              <span className="block text-xs font-bold text-amber-800 mb-1">بانتظار موافقة الأدمن</span>
-              <span className="text-xl font-black font-mono text-amber-900">
-                {allTransfers.filter((t) => t.status === "pending_admin_initial").length}
-              </span>
-            </div>
-            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-center">
-              <span className="block text-xs font-bold text-purple-800 mb-1">بانتظار تأكيد الشحن</span>
-              <span className="text-xl font-black font-mono text-purple-900">
-                {allTransfers.filter((t) => t.status === "dispatched_by_source").length}
-              </span>
-            </div>
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
-              <span className="block text-xs font-bold text-emerald-800 mb-1">مكتمل ومؤرشف</span>
-              <span className="text-xl font-black font-mono text-emerald-900">
-                {allTransfers.filter((t) => t.status === "completed").length}
-              </span>
-            </div>
-          </div>
+      {tabToRender === "transfers" && (() => {
+        const activeTransfers = allTransfers.filter(
+          (t) => t.status !== "completed" && t.status !== "rejected"
+        );
+        const archivedTransfers = allTransfers.filter(
+          (t) => t.status === "completed" || t.status === "rejected"
+        );
+        const currentPool = transferMainTab === "active" ? activeTransfers : archivedTransfers;
 
-          {/* Filters Bar */}
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-slate-600">تصفية حسب الحالة:</span>
-              <select
-                value={transferFilterStatus}
-                onChange={(e) => setTransferFilterStatus(e.target.value)}
-                className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-bold outline-none text-slate-800"
+        const filteredTransfers = currentPool.filter((t) => {
+          if (transferFilterStatus !== "ALL" && t.status !== transferFilterStatus) return false;
+          if (
+            transferFilterBranch !== "ALL" &&
+            t.fromBranchCode !== transferFilterBranch &&
+            t.toBranchCode !== transferFilterBranch
+          ) {
+            return false;
+          }
+          if (transferSearch.trim()) {
+            const q = transferSearch.trim().toLowerCase();
+            const matchNo = t.transferNo.toLowerCase().includes(q) || t.id.toLowerCase().includes(q);
+            const matchFrom = t.fromBranchName.toLowerCase().includes(q) || t.fromBranchCode.toLowerCase().includes(q);
+            const matchTo = t.toBranchName.toLowerCase().includes(q) || t.toBranchCode.toLowerCase().includes(q);
+            const matchEmp = t.requestedBy.toLowerCase().includes(q) || t.requestedById.toLowerCase().includes(q);
+            const matchItems = t.items.some(
+              (i) => i.code.includes(q) || i.nameAr.toLowerCase().includes(q) || (i.nameEn && i.nameEn.toLowerCase().includes(q))
+            );
+            return matchNo || matchFrom || matchTo || matchEmp || matchItems;
+          }
+          return true;
+        });
+
+        return (
+          <div className="space-y-4 sm:space-y-6">
+            {/* Top Quick KPI Overview */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 sm:p-4 text-center shadow-2xs">
+                <span className="block text-[11px] sm:text-xs font-bold text-slate-500 mb-0.5">إجمالي المعاملات</span>
+                <span className="text-lg sm:text-xl font-black font-mono text-slate-800">{allTransfers.length}</span>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 sm:p-4 text-center shadow-2xs">
+                <span className="block text-[11px] sm:text-xs font-bold text-amber-800 mb-0.5">بانتظار موافقة الأدمن</span>
+                <span className="text-lg sm:text-xl font-black font-mono text-amber-900">
+                  {allTransfers.filter((t) => t.status === "pending_admin_initial").length}
+                </span>
+              </div>
+              <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3 sm:p-4 text-center shadow-2xs">
+                <span className="block text-[11px] sm:text-xs font-bold text-purple-800 mb-0.5">بانتظار تأكيد الشحن</span>
+                <span className="text-lg sm:text-xl font-black font-mono text-purple-900">
+                  {allTransfers.filter((t) => t.status === "dispatched_by_source").length}
+                </span>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 sm:p-4 text-center shadow-2xs">
+                <span className="block text-[11px] sm:text-xs font-bold text-emerald-800 mb-0.5">المؤرشفة والسابقة</span>
+                <span className="text-lg sm:text-xl font-black font-mono text-emerald-900">
+                  {archivedTransfers.length}
+                </span>
+              </div>
+            </div>
+
+            {/* Main Tabs: Active Transfers vs Archived / Past Transfers */}
+            <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200 text-xs font-black">
+              <button
+                type="button"
+                onClick={() => {
+                  setTransferMainTab("active");
+                  setTransferFilterStatus("ALL");
+                }}
+                className={`flex-1 py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-2 ${
+                  transferMainTab === "active"
+                    ? "bg-purple-600 text-white shadow-md shadow-purple-600/25"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                }`}
               >
-                <option value="ALL">جميع الحالات ({allTransfers.length})</option>
-                <option value="pending_admin_initial">1. بانتظار موافقة الأدمن الأولى</option>
-                <option value="approved_by_admin">2. بانتظار تجهيز الفرع المرسل</option>
-                <option value="dispatched_by_source">3. بانتظار تأكيد الشحن من الأدمن</option>
-                <option value="in_transit">4. في الطريق للفرع المستلم</option>
-                <option value="completed">5. مكتمل ومؤرشف</option>
-                <option value="rejected">مرفوض</option>
-              </select>
-            </div>
+                <i className="ph-bold ph-arrows-left-right text-base"></i>
+                <span>المعاملات النشطة والجارية</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                  transferMainTab === "active" ? "bg-white/20 text-white" : "bg-amber-100 text-amber-900"
+                }`}>
+                  {activeTransfers.length}
+                </span>
+              </button>
 
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-600">الفرع:</span>
-              <select
-                value={transferFilterBranch}
-                onChange={(e) => setTransferFilterBranch(e.target.value)}
-                className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-bold outline-none text-slate-800"
+              <button
+                type="button"
+                onClick={() => {
+                  setTransferMainTab("archive");
+                  setTransferFilterStatus("ALL");
+                }}
+                className={`flex-1 py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-2 ${
+                  transferMainTab === "archive"
+                    ? "bg-purple-600 text-white shadow-md shadow-purple-600/25"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                }`}
               >
-                <option value="ALL">جميع الفروع</option>
-                {branches.map((b) => (
-                  <option key={b.branch_code} value={b.branch_code}>
-                    {b.branch_code} - {getBranchName(b.branch_code, b.branch_name)}
-                  </option>
-                ))}
-              </select>
+                <i className="ph-bold ph-archive-box text-base"></i>
+                <span>المعاملات السابقة والمؤرشفة</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                  transferMainTab === "archive" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+                }`}>
+                  {archivedTransfers.length}
+                </span>
+              </button>
             </div>
-          </div>
 
-          {/* Transfers List */}
-          {allTransfers
-            .filter((t) => transferFilterStatus === "ALL" || t.status === transferFilterStatus)
-            .filter(
-              (t) =>
-                transferFilterBranch === "ALL" ||
-                t.fromBranchCode === transferFilterBranch ||
-                t.toBranchCode === transferFilterBranch
-            ).length === 0 ? (
-            <div className="py-16 text-center text-slate-400 font-bold bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-              <i className="ph-bold ph-tray text-5xl text-slate-300 mb-2 block"></i>
-              <p>لا توجد معاملات تحويل تطابق معايير البحث المحددة</p>
+            {/* Search Box & Filters Bar */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-2xs space-y-3">
+              {/* Search by Transfer Number / Item / Branch */}
+              <div className="relative">
+                <i className={`ph-bold ph-magnifying-glass absolute top-1/2 ${lang === 'ar' ? 'right-3.5' : 'left-3.5'} -translate-y-1/2 text-slate-400 text-base sm:text-lg`}></i>
+                <input
+                  type="text"
+                  value={transferSearch}
+                  onChange={(e) => setTransferSearch(e.target.value)}
+                  placeholder="ابحث برقم المعاملة (مثال: TR-2609-001) أو اسم الصنف أو كود الفرع..."
+                  className={`w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl ${lang === 'ar' ? 'pr-10 pl-10' : 'pl-10 pr-10'} py-2.5 sm:py-3 text-slate-800 font-medium focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 outline-none transition text-xs sm:text-sm`}
+                />
+                {transferSearch && (
+                  <button
+                    onClick={() => setTransferSearch("")}
+                    className={`absolute top-1/2 ${lang === 'ar' ? 'left-3' : 'right-3'} -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1`}
+                    title="مسح البحث"
+                  >
+                    <i className="ph-bold ph-x text-sm"></i>
+                  </button>
+                )}
+              </div>
+
+              {/* Status and Branch Filter Dropdowns */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 text-xs">
+                {/* Status Dropdown */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-bold text-slate-500 shrink-0">الحالة:</span>
+                  <select
+                    value={transferFilterStatus}
+                    onChange={(e) => setTransferFilterStatus(e.target.value)}
+                    className="w-full sm:w-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold outline-none text-slate-800 focus:bg-white focus:border-purple-500 transition cursor-pointer"
+                  >
+                    <option value="ALL">جميع الحالات ({currentPool.length})</option>
+                    {transferMainTab === "active" ? (
+                      <>
+                        <option value="pending_admin_initial">1. بانتظار موافقة الأدمن الأولى</option>
+                        <option value="approved_by_admin">2. بانتظار تجهيز الفرع المرسل</option>
+                        <option value="dispatched_by_source">3. بانتظار تأكيد الشحن من الأدمن</option>
+                        <option value="in_transit">4. في الطريق للفرع المستلم</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="completed">5. مكتمل ومؤرشف 🟢</option>
+                        <option value="rejected">مرفوض ❌</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                {/* Branch Dropdown */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-bold text-slate-500 shrink-0">الفرع:</span>
+                  <select
+                    value={transferFilterBranch}
+                    onChange={(e) => setTransferFilterBranch(e.target.value)}
+                    className="w-full sm:w-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold outline-none text-slate-800 focus:bg-white focus:border-purple-500 transition cursor-pointer truncate"
+                  >
+                    <option value="ALL">جميع الفروع</option>
+                    {branches.map((b) => (
+                      <option key={b.branch_code} value={b.branch_code}>
+                        {b.branch_code} - {getBranchName(b.branch_code, b.branch_name)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {allTransfers
-                .filter((t) => transferFilterStatus === "ALL" || t.status === transferFilterStatus)
-                .filter(
-                  (t) =>
-                    transferFilterBranch === "ALL" ||
-                    t.fromBranchCode === transferFilterBranch ||
-                    t.toBranchCode === transferFilterBranch
-                )
-                .map((t) => {
+
+            {/* Transfers List */}
+            {filteredTransfers.length === 0 ? (
+              <div className="py-14 text-center text-slate-400 font-bold bg-white rounded-3xl border border-dashed border-slate-200 shadow-2xs">
+                <i className="ph-bold ph-tray text-5xl text-slate-300 mb-2 block"></i>
+                <p className="text-sm text-slate-600 font-black mb-1">
+                  {transferMainTab === "active" ? "لا توجد معاملات تحويل نشطة حالياً" : "لا توجد معاملات مؤرشفة تطابق البحث"}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {transferSearch || transferFilterStatus !== "ALL" || transferFilterBranch !== "ALL"
+                    ? "جرّب تغيير معايير البحث أو تصفية الفروع"
+                    : transferMainTab === "active"
+                    ? "جميع المعاملات السابقة مكتملة ومخزنة في الأرشيف"
+                    : "ستظهر هنا المعاملات بعد اكتمالها أو أرشفتها"}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredTransfers.map((t) => {
                   const isInitialPending = t.status === "pending_admin_initial";
                   const isDispatchedPending = t.status === "dispatched_by_source";
                   const isCompleted = t.status === "completed";
+                  const isRejected = t.status === "rejected";
 
                   return (
                     <div
                       key={t.id}
-                      className={`bg-white rounded-3xl p-5 border shadow-sm space-y-4 ${
+                      className={`bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border shadow-sm space-y-3.5 transition ${
                         isInitialPending
                           ? "border-amber-400/90 ring-1 ring-amber-400/20"
                           : isDispatchedPending
                           ? "border-purple-400/90 ring-1 ring-purple-400/20"
+                          : isCompleted
+                          ? "border-emerald-200"
                           : "border-slate-200"
                       }`}
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                      {/* Transfer Header Row */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
                         <div>
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className="font-mono font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded text-xs">
+                          <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                            {/* Transaction Number Badge */}
+                            <span className="font-mono font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-lg text-xs shadow-2xs">
                               #{t.transferNo}
                             </span>
+
+                            {/* Status Badge */}
                             {t.status === "pending_admin_initial" && (
                               <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs px-2.5 py-0.5 rounded-full font-bold">
                                 1. بانتظار موافقة الأدمن ⏳
@@ -939,7 +1062,7 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
                               </span>
                             )}
                             {t.status === "in_transit" && (
-                              <span className="bg-teal-100 text-teal-950 border border-teal-300 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                              <span className="bg-teal-100 text-teal-950 border border-teal-300 text-xs px-2.5 py-0.5 rounded-full font-bold animate-pulse">
                                 4. في الطريق للفرع المستلم 🚚
                               </span>
                             )}
@@ -953,23 +1076,30 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
                                 مرفوض ❌
                               </span>
                             )}
-                            <span className="text-xs text-slate-400 font-normal">
-                              {new Date(t.requestedAt).toLocaleString("ar-EG")}
+
+                            <span className="text-[11px] text-slate-400 font-normal">
+                              {new Date(t.requestedAt).toLocaleString(lang === "en" ? "en-US" : "ar-EG")}
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2 text-sm sm:text-base font-black text-slate-900">
-                            <span className="text-rose-700">المصدر: {t.fromBranchName}</span>
-                            <i className="ph-bold ph-arrow-left text-slate-400"></i>
-                            <span className="text-emerald-700">المستلم: {t.toBranchName}</span>
+                          {/* From -> To Branch Route */}
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-black text-slate-900">
+                            <span className="text-rose-700 bg-rose-50/70 border border-rose-100 px-2 py-0.5 rounded-lg inline-block">
+                              المصدر: {t.fromBranchName}
+                            </span>
+                            <i className="ph-bold ph-arrow-left text-slate-400 hidden sm:inline"></i>
+                            <span className="text-emerald-700 bg-emerald-50/70 border border-emerald-100 px-2 py-0.5 rounded-lg inline-block">
+                              المستلم: {t.toBranchName}
+                            </span>
                           </div>
-                          <div className="text-xs text-slate-500 font-bold mt-0.5">
-                            بواسطة الموظف: {t.requestedBy} (#{t.requestedById})
+
+                          <div className="text-[11px] text-slate-500 font-bold mt-1">
+                            بواسطة الموظف: <span className="text-slate-800">{t.requestedBy}</span> (#{t.requestedById})
                           </div>
                         </div>
 
-                        {/* Admin Action Buttons */}
-                        <div className="flex items-center gap-2 flex-wrap">
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                           {isInitialPending && (
                             <button
                               onClick={() => {
@@ -981,10 +1111,10 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
                                 setAdminApprovedQtys(initial);
                                 setAdminReviewNotes("");
                               }}
-                              className="bg-violet-600 hover:bg-violet-700 text-white font-black text-xs px-4 py-2 rounded-xl transition shadow-md flex items-center gap-1.5"
+                              className="bg-violet-600 hover:bg-violet-700 text-white font-black text-xs px-3.5 py-2 rounded-xl transition shadow-md shadow-violet-600/20 flex items-center gap-1.5 active:scale-95"
                             >
                               <i className="ph-bold ph-pencil-simple text-sm"></i>
-                              <span>مراجعة وتعديل الكميات واعتماد الطلب ✍️</span>
+                              <span>مراجعة واعتماد الطلب ✍️</span>
                             </button>
                           )}
 
@@ -993,19 +1123,37 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
                               onClick={() => {
                                 adminFinalApproveMut.mutate({ id: t.id });
                               }}
-                              className="bg-purple-600 hover:bg-purple-700 text-white font-black text-xs px-4 py-2 rounded-xl transition shadow-md flex items-center gap-1.5"
+                              className="bg-purple-600 hover:bg-purple-700 text-white font-black text-xs px-3.5 py-2 rounded-xl transition shadow-md shadow-purple-600/20 flex items-center gap-1.5 active:scale-95"
                             >
                               <i className="ph-bold ph-truck text-sm"></i>
-                              <span>تأكيد الشحن وترحيلها في الطريق 🚚</span>
+                              <span>تأكيد الشحن 🚚</span>
+                            </button>
+                          )}
+
+                          {/* Close & Archive Transfer Button (available for active transfers) */}
+                          {!isCompleted && !isRejected && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`هل أنت متأكد من إغلاق المعاملة #${t.transferNo} ونقلها إلى سجل المعاملات السابقة والمؤرشفة؟`)) {
+                                  closeTransferMut.mutate({ id: t.id });
+                                }
+                              }}
+                              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs px-3 py-2 rounded-xl transition flex items-center gap-1.5 active:scale-95 shadow-2xs"
+                              title="إغلاق وأرشفة المعاملة فوراً ونقلها للمؤرشفة"
+                            >
+                              <i className="ph-bold ph-archive-box text-sm text-emerald-600"></i>
+                              <span>إغلاق وأرشفة 📁</span>
                             </button>
                           )}
 
                           <button
                             onClick={() => setSelectedTransferTimeline(t)}
-                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-2 rounded-xl transition flex items-center gap-1"
+                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-2.5 sm:px-3 py-2 rounded-xl transition flex items-center gap-1 shadow-2xs"
+                            title="سجل الحركات والاعتمادات"
                           >
-                            <i className="ph-bold ph-clock-counter-clockwise"></i>
-                            <span>سجل الحركات</span>
+                            <i className="ph-bold ph-clock-counter-clockwise text-sm"></i>
+                            <span className="hidden sm:inline">سجل الحركات</span>
                           </button>
 
                           <button
@@ -1028,50 +1176,91 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
                               printWindow.focus();
                               printWindow.print();
                             }}
-                            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3 py-2 rounded-xl transition flex items-center gap-1"
+                            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-2.5 sm:px-3 py-2 rounded-xl transition flex items-center gap-1 shadow-2xs"
+                            title="طباعة سند PDF"
                           >
-                            <i className="ph-bold ph-file-pdf"></i> PDF
+                            <i className="ph-bold ph-file-pdf text-sm"></i> <span>PDF</span>
                           </button>
                         </div>
                       </div>
 
-                      {/* Items Table */}
-                      <div className="border border-slate-200 rounded-2xl overflow-hidden text-xs">
-                        <table className="w-full text-right">
-                          <thead className="bg-slate-100 text-slate-600 font-bold">
-                            <tr>
-                              <th className="p-2.5">الصنف</th>
-                              <th className="p-2.5">الوحدة</th>
-                              <th className="p-2.5">المطلوب</th>
-                              <th className="p-2.5">معتمد الأدمن</th>
-                              <th className="p-2.5">المشحون من الفرع</th>
-                              <th className="p-2.5">المستلم فعلياً</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 font-bold text-slate-800">
-                            {t.items.map((i, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50">
-                                <td className="p-2.5">
-                                  <span className="font-mono text-blue-600 ml-1">#{i.code}</span>
-                                  <span>{i.nameAr}</span>
-                                </td>
-                                <td className="p-2.5">{i.unit}</td>
-                                <td className="p-2.5 font-mono">{i.requestedQty}</td>
-                                <td className="p-2.5 font-mono text-blue-700">{i.adminApprovedQty ?? i.requestedQty}</td>
-                                <td className="p-2.5 font-mono text-purple-700">{i.dispatchedQty ?? "-"}</td>
-                                <td className="p-2.5 font-mono text-emerald-700">{i.receivedQty ?? "-"}</td>
+                      {/* Items Display: Responsive on Mobile, Table on Desktop */}
+                      <div>
+                        {/* Mobile Items Cards (< sm) */}
+                        <div className="sm:hidden space-y-2">
+                          {t.items.map((i, idx) => (
+                            <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs space-y-1.5">
+                              <div className="flex items-center justify-between gap-1.5">
+                                <div className="min-w-0">
+                                  <span className="font-mono text-blue-700 font-bold ml-1">#{i.code}</span>
+                                  <span className="font-black text-slate-900">{i.nameAr}</span>
+                                </div>
+                                <span className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-600 shrink-0">
+                                  {i.unit}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-4 gap-1 pt-1 border-t border-slate-200/70 text-center font-mono text-[11px]">
+                                <div className="bg-white p-1 rounded-lg border border-slate-200">
+                                  <span className="block text-[9px] font-bold text-slate-400 font-sans">المطلوب</span>
+                                  <span className="font-black text-slate-800">{i.requestedQty}</span>
+                                </div>
+                                <div className="bg-blue-50/60 p-1 rounded-lg border border-blue-100">
+                                  <span className="block text-[9px] font-bold text-blue-600 font-sans">المعتمد</span>
+                                  <span className="font-black text-blue-800">{i.adminApprovedQty ?? i.requestedQty}</span>
+                                </div>
+                                <div className="bg-purple-50/60 p-1 rounded-lg border border-purple-100">
+                                  <span className="block text-[9px] font-bold text-purple-600 font-sans">المشحون</span>
+                                  <span className="font-black text-purple-800">{i.dispatchedQty ?? "-"}</span>
+                                </div>
+                                <div className="bg-emerald-50/60 p-1 rounded-lg border border-emerald-100">
+                                  <span className="block text-[9px] font-bold text-emerald-600 font-sans">المستلم</span>
+                                  <span className="font-black text-emerald-800">{i.receivedQty ?? "-"}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Desktop / Tablet Items Table (sm: and up) */}
+                        <div className="hidden sm:block border border-slate-200 rounded-2xl overflow-hidden text-xs">
+                          <table className="w-full text-right">
+                            <thead className="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200">
+                              <tr>
+                                <th className="p-2.5">الصنف</th>
+                                <th className="p-2.5">الوحدة</th>
+                                <th className="p-2.5">المطلوب</th>
+                                <th className="p-2.5">معتمد الأدمن</th>
+                                <th className="p-2.5">المشحون من الفرع</th>
+                                <th className="p-2.5">المستلم فعلياً</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-bold text-slate-800 bg-white">
+                              {t.items.map((i, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50/80 transition">
+                                  <td className="p-2.5">
+                                    <span className="font-mono text-blue-600 ml-1">#{i.code}</span>
+                                    <span>{i.nameAr}</span>
+                                  </td>
+                                  <td className="p-2.5 text-slate-600">{i.unit}</td>
+                                  <td className="p-2.5 font-mono">{i.requestedQty}</td>
+                                  <td className="p-2.5 font-mono text-blue-700">{i.adminApprovedQty ?? i.requestedQty}</td>
+                                  <td className="p-2.5 font-mono text-purple-700">{i.dispatchedQty ?? "-"}</td>
+                                  <td className="p-2.5 font-mono text-emerald-700">{i.receivedQty ?? "-"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
-            </div>
-          )}
-        </div>
-      )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* MODAL: ADMIN REVIEW & QUANTITY ADJUSTMENT */}
       {adminReviewingTransfer && (
@@ -1215,13 +1404,31 @@ export function AdminRequestsPanel({ forcedTab, hideTabsNav = false, onCountsCha
               ))}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setSelectedTransferTimeline(null)}
-              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs"
-            >
-              إغلاق
-            </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-100">
+              {selectedTransferTimeline.status !== "completed" && selectedTransferTimeline.status !== "rejected" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm(`هل أنت متأكد من إغلاق المعاملة #${selectedTransferTimeline.transferNo} ونقلها للأرشيف فوراً؟`)) {
+                      closeTransferMut.mutate({ id: selectedTransferTimeline.id });
+                      setSelectedTransferTimeline(null);
+                    }
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/25 transition active:scale-95"
+                >
+                  <i className="ph-bold ph-archive-box text-base"></i>
+                  <span>إغلاق المعاملة ونقلها للأرشيف 📁</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setSelectedTransferTimeline(null)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs"
+              >
+                إغلاق
+              </button>
+            </div>
           </div>
         </div>
       )}

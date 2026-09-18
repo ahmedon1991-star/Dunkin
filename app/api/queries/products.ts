@@ -804,3 +804,26 @@ export function rejectBranchTransfer(input: {
 
   return t;
 }
+
+export function closeOrArchiveBranchTransfer(input: {
+  id: string;
+  closedBy: string;
+  notes?: string;
+}) {
+  const t = memoryTransfers.find((x) => x.id === input.id);
+  if (!t) throw new Error("طلب التحويل غير موجود");
+
+  const now = new Date().toISOString();
+  t.status = "completed";
+  t.receivedNotes = input.notes || "تم إغلاق وأرشفة المعاملة";
+
+  t.timeline.push({
+    timestamp: now,
+    action: "إغلاق وأرشفة المعاملة",
+    by: input.closedBy,
+    role: "إدارة العمليات / المشرف",
+    notes: input.notes || "تم نقل المعاملة بنجاح إلى سجل المعاملات السابقة والمؤرشفة",
+  });
+
+  return t;
+}

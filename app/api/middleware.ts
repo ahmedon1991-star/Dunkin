@@ -8,6 +8,7 @@ const t = initTRPC.context<TrpcContext>().create({
 
 export const createRouter = t.router;
 export const publicQuery = t.procedure;
+export const publicProcedure = t.procedure;
 
 /**
  * Procedue requiring any authenticated user (staff, manager, or admin)

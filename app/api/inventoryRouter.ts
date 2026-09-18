@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createRouter, publicQuery, protectedProcedure, adminProcedure } from "./middleware";
+import { createRouter, publicQuery, publicProcedure, protectedProcedure, adminProcedure } from "./middleware";
 import {
   listProducts,
   updateProduct,
@@ -18,6 +18,7 @@ import {
   adminFinalApproveTransfer,
   destinationReceiveTransfer,
   rejectBranchTransfer,
+  closeOrArchiveBranchTransfer,
 } from "./queries/products";
 
 const unitCode = z.enum(["CTN", "PKT", "PCS"]);
@@ -312,4 +313,23 @@ export const inventoryRouter = createRouter({
         reason: input.reason,
       });
     }),
+
+  /** إغلاق وأرشفة المعاملة ونقلها إلى المعاملات السابقة */
+  closeOrArchiveTransfer: publicProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        closedBy: z.string().optional(),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const by = input.closedBy || ctx.user?.fullName || "المشرف";
+      return closeOrArchiveBranchTransfer({
+        id: input.id,
+        closedBy: by,
+        notes: input.notes,
+      });
+    }),
 });
+
