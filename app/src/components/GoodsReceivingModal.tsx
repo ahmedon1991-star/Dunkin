@@ -178,89 +178,86 @@ export function GoodsReceivingModal({
         dir={lang === "ar" ? "rtl" : "ltr"}
       >
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 sm:p-6 pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-2xl font-black shadow-lg shadow-emerald-500/30 shrink-0">
-              <i className="ph-bold ph-package-receive"></i>
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-5 flex items-center justify-between gap-3 border-b border-slate-800">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-400 flex items-center justify-center text-xl shrink-0 shadow-inner">
+              <i className="ph-bold ph-tray-arrow-down"></i>
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-lg sm:text-xl font-black">
+                <h3 className="text-base sm:text-lg font-black truncate">
                   {lang === "en" ? "Goods Receipt & Intake Confirmation" : "استلام المنتجات وتوريد المخزون الفعلي"}
                 </h3>
-                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold px-2 py-0.5 rounded-md">
+                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-md">
                   {lang === "en" ? "Stock Inflow" : "إضافة للمخزون"}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-semibold mt-0.5">
-                {branchObj ? getBranchName(branchObj.branch_name) : `فرع ${selectedBranch}`} • {getEmployeeName(session?.full_name || "")}
+              <p className="text-[11px] text-slate-400 font-semibold truncate mt-0.5">
+                {branchObj ? getBranchName(branchObj.branch_code, branchObj.branch_name) : `فرع ${selectedBranch}`} • {getEmployeeName(session?.full_name || "")}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <button
-              onClick={onClose}
-              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition border border-slate-700"
-            >
-              <i className="ph-bold ph-x text-lg"></i>
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition border border-slate-700 shrink-0"
+          >
+            <i className="ph-bold ph-x text-base"></i>
+          </button>
         </div>
 
-        {/* Operational Status Banner & Counters */}
-        <div className="bg-slate-50 border-b border-slate-200 p-4 px-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 sm:gap-4 flex-wrap text-xs">
-            <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-xl flex items-center gap-2 font-bold shadow-sm">
-              <span className="text-slate-500">{lang === "en" ? "Total Items:" : "إجمالي الأصناف:"}</span>
-              <span className="font-mono text-slate-900 font-black text-sm">{totalOrdered}</span>
+        {/* Operational Status Dashboard & Quick Batch Controls */}
+        <div className="bg-slate-50 border-b border-slate-200 p-3 sm:p-4 space-y-2.5">
+          {/* KPI 3-column Cards */}
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div className="bg-white border border-slate-200 p-2 sm:p-2.5 rounded-xl text-center shadow-2xs">
+              <span className="block text-[10px] sm:text-xs text-slate-500 font-bold truncate">
+                {lang === "en" ? "Total Items" : "إجمالي الأصناف"}
+              </span>
+              <span className="font-mono text-slate-900 font-black text-sm sm:text-base">{totalOrdered}</span>
             </div>
 
-            <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center gap-2 font-bold text-emerald-800 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>{lang === "en" ? "Fully Received:" : "تم الاستلام بالكامل:"}</span>
-              <span className="font-mono text-emerald-700 font-black text-sm">{fullyReceivedCount}</span>
+            <div className="bg-emerald-50/80 border border-emerald-200 p-2 sm:p-2.5 rounded-xl text-center shadow-2xs">
+              <span className="block text-[10px] sm:text-xs text-emerald-700 font-bold truncate">
+                {lang === "en" ? "Received" : "تم الاستلام"}
+              </span>
+              <span className="font-mono text-emerald-800 font-black text-sm sm:text-base">{fullyReceivedCount}</span>
             </div>
 
-            {partiallyReceivedCount > 0 && (
-              <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl flex items-center gap-2 font-bold text-amber-800 shadow-sm">
-                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                <span>{lang === "en" ? "Partial:" : "استلام جزئي:"}</span>
-                <span className="font-mono text-amber-700 font-black text-sm">{partiallyReceivedCount}</span>
-              </div>
-            )}
-
-            <div className="bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl flex items-center gap-2 font-bold text-rose-800 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-              <span>{lang === "en" ? "Not Received:" : "لم يتم الاستلام:"}</span>
-              <span className="font-mono text-rose-700 font-black text-sm">{notReceivedCount}</span>
+            <div className="bg-rose-50/80 border border-rose-200 p-2 sm:p-2.5 rounded-xl text-center shadow-2xs">
+              <span className="block text-[10px] sm:text-xs text-rose-700 font-bold truncate">
+                {lang === "en" ? "Missing" : "لم يصل"}
+              </span>
+              <span className="font-mono text-rose-800 font-black text-sm sm:text-base">{notReceivedCount}</span>
             </div>
           </div>
 
           {/* Quick Batch Controls */}
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={markAllFull}
-              className="bg-white hover:bg-emerald-50 text-emerald-700 hover:text-emerald-800 border border-emerald-200 hover:border-emerald-300 text-xs font-black px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm"
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98]"
               title={lang === "en" ? "Mark all items as fully arrived" : "تأكيد وصول جميع الأصناف بالكامل"}
             >
-              <i className="ph-bold ph-check-circle text-emerald-600"></i>
+              <i className="ph-bold ph-check-circle text-sm"></i>
               <span>{lang === "en" ? "All Arrived" : "استلام الكل بالكامل"}</span>
             </button>
 
             <button
+              type="button"
               onClick={markAllNotReceived}
-              className="bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 border border-rose-200 hover:border-rose-300 text-xs font-black px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm"
+              className="flex-1 bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 border border-rose-200 text-xs font-black py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98]"
               title={lang === "en" ? "Mark all items as not arrived" : "تحديد الكل كـ لم يصل"}
             >
-              <i className="ph-bold ph-x-circle text-rose-600"></i>
+              <i className="ph-bold ph-x-circle text-sm"></i>
               <span>{lang === "en" ? "None Arrived" : "لم يصل شيء"}</span>
             </button>
           </div>
         </div>
 
-        {/* Scrollable Items Table */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-3 bg-slate-100/50">
+        {/* Scrollable Items Cards List */}
+        <div className="p-3 sm:p-5 overflow-y-auto flex-1 space-y-3 bg-slate-100/60">
           {items.length === 0 ? (
             <div className="py-16 text-center text-slate-400 font-bold bg-white rounded-2xl border border-slate-200">
               <i className="ph-bold ph-tray text-4xl text-slate-300 mb-2 block"></i>
@@ -275,131 +272,145 @@ export function GoodsReceivingModal({
               return (
                 <div
                   key={idx}
-                  className={`border rounded-2xl p-3.5 sm:p-4 transition-all ${
+                  className={`border rounded-2xl p-3 sm:p-4 transition-all space-y-2.5 ${
                     isNotReceived
-                      ? "bg-rose-50/70 border-rose-300 shadow-sm"
+                      ? "bg-rose-50/60 border-rose-300/80 shadow-2xs"
                       : isFull
-                      ? "bg-white border-emerald-200 hover:border-emerald-300 shadow-sm"
-                      : "bg-amber-50/70 border-amber-300 shadow-sm"
+                      ? "bg-white border-emerald-200 hover:border-emerald-300 shadow-2xs"
+                      : "bg-amber-50/60 border-amber-300/80 shadow-2xs"
                   }`}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    {/* Item Info */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-xs font-mono font-black text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded">
-                          #{item.productCode}
-                        </span>
-                        <span className="text-xs font-bold text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded">
-                          {item.unit}
-                        </span>
-
-                        {/* Status Badges */}
-                        {isNotReceived ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-black bg-rose-600 text-white px-2.5 py-0.5 rounded-full shadow-sm">
-                            <i className="ph-bold ph-x-circle"></i>
-                            {lang === "en" ? "Not Received" : "لم يتم الاستلام"}
-                          </span>
-                        ) : isFull ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded-full shadow-sm">
-                            <i className="ph-bold ph-check-circle"></i>
-                            {lang === "en" ? "Fully Received" : "تم الاستلام بالكامل"}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-black bg-amber-600 text-white px-2.5 py-0.5 rounded-full shadow-sm">
-                            <i className="ph-bold ph-warning-circle"></i>
-                            {lang === "en" ? "Partial Receipt" : "استلام جزئي"}
-                          </span>
-                        )}
-                      </div>
-
-                      <h4 className="text-sm sm:text-base font-black text-slate-900 leading-tight">
-                        {lang === "en" ? item.nameEn || item.nameAr : item.nameAr}
-                      </h4>
-                      <p className="text-xs text-slate-500 font-sans mt-0.5" dir="ltr">
-                        {lang === "en" ? item.nameAr : item.nameEn}
-                      </p>
+                  {/* Item Header: Code, Unit, Status Badge */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-mono font-black text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg">
+                        #{item.productCode}
+                      </span>
+                      <span className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg">
+                        {item.unit}
+                      </span>
                     </div>
 
-                    {/* Quantities & Status Selectors */}
-                    <div className="flex items-center gap-3 self-end sm:self-auto flex-wrap">
-                      {/* Requested Qty Display */}
-                      <div className="text-center bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">
-                        <span className="block text-[10px] text-slate-400 font-bold uppercase">
+                    {/* Status Badges */}
+                    {isNotReceived ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-black bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-0.5 rounded-full">
+                        <i className="ph-bold ph-x-circle text-xs"></i>
+                        {lang === "en" ? "Not Received" : "لم يتم الاستلام"}
+                      </span>
+                    ) : isFull ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                        <i className="ph-bold ph-check-circle text-xs"></i>
+                        {lang === "en" ? "Fully Received" : "تم الاستلام بالكامل"}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full">
+                        <i className="ph-bold ph-warning-circle text-xs"></i>
+                        {lang === "en" ? "Partial Receipt" : "استلام جزئي"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Product Title */}
+                  <div>
+                    <h4 className="text-sm sm:text-base font-black text-slate-900 leading-snug">
+                      {lang === "en" ? item.nameEn || item.nameAr : item.nameAr}
+                    </h4>
+                    {(item.nameEn && item.nameAr) && (
+                      <p className="text-[11px] text-slate-400 font-sans mt-0.5" dir="ltr">
+                        {lang === "en" ? item.nameAr : item.nameEn}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Interactive Control Row */}
+                  <div className="bg-slate-50/90 border border-slate-200/80 rounded-xl p-2 sm:p-2.5 flex items-center justify-between gap-2 flex-wrap">
+                    {/* Quantities: Ordered & Received */}
+                    <div className="flex items-center gap-2">
+                      <div className="bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-center shadow-2xs">
+                        <span className="block text-[9px] text-slate-400 font-bold uppercase">
                           {lang === "en" ? "Ordered" : "المطلوب"}
                         </span>
-                        <span className="text-sm font-black font-mono text-slate-700">
+                        <span className="text-xs sm:text-sm font-black font-mono text-slate-700">
                           {item.orderedQty}
                         </span>
                       </div>
 
-                      {/* Actual Received Input */}
-                      <div className="text-center">
-                        <span className="block text-[10px] text-emerald-800 font-bold uppercase">
-                          {lang === "en" ? "Arrived" : "الواصل فعلياً"}
-                        </span>
-                        <div className="flex items-center gap-1 mt-0.5">
+                      <div className="flex items-center gap-1">
+                        <div className="bg-white border border-emerald-300 px-2 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                          <span className="text-[10px] text-emerald-800 font-black">
+                            {lang === "en" ? "Arrived:" : "الواصل:"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setCustomQty(idx, Math.max(0, item.receivedQty - 1))}
+                            className="w-5 h-5 bg-slate-100 hover:bg-slate-200 rounded font-black text-xs flex items-center justify-center text-slate-700 active:scale-95"
+                          >
+                            -
+                          </button>
                           <input
                             type="number"
                             min={0}
                             value={item.receivedQty}
                             onChange={(e) => setCustomQty(idx, parseInt(e.target.value, 10))}
-                            className={`w-20 font-mono font-black text-center text-sm py-1.5 px-2 rounded-xl border outline-none transition focus:ring-2 ${
-                              isNotReceived
-                                ? "bg-rose-100 text-rose-950 border-rose-300 focus:ring-rose-400"
-                                : "bg-emerald-50 text-emerald-950 border-emerald-300 focus:ring-emerald-400"
-                            }`}
+                            className="w-12 text-center font-mono font-black text-xs sm:text-sm text-emerald-950 bg-transparent outline-none"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setCustomQty(idx, item.receivedQty + 1)}
+                            className="w-5 h-5 bg-slate-100 hover:bg-slate-200 rounded font-black text-xs flex items-center justify-center text-slate-700 active:scale-95"
+                          >
+                            +
+                          </button>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Quick Action Toggle Buttons */}
-                      <div className="flex items-center gap-1.5 pt-3 sm:pt-0">
-                        <button
-                          type="button"
-                          onClick={() => markFull(idx)}
-                          className={`px-3 py-2 rounded-xl text-xs font-black transition flex items-center gap-1 ${
-                            isFull
-                              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
-                              : "bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          }`}
-                          title={lang === "en" ? "Full Delivery" : "تأكيد وصول الكمية كاملة"}
-                        >
-                          <i className="ph-bold ph-check text-sm"></i>
-                          <span>{lang === "en" ? "Full" : "وصل"}</span>
-                        </button>
+                    {/* Quick Action Toggle Buttons */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => markFull(idx)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center gap-1 active:scale-95 ${
+                          isFull
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300"
+                        }`}
+                        title={lang === "en" ? "Full Delivery" : "تأكيد وصول الكمية كاملة"}
+                      >
+                        <i className="ph-bold ph-check text-xs"></i>
+                        <span>{lang === "en" ? "Full" : "وصل"}</span>
+                      </button>
 
-                        <button
-                          type="button"
-                          onClick={() => markNotReceived(idx)}
-                          className={`px-3 py-2 rounded-xl text-xs font-black transition flex items-center gap-1 ${
-                            isNotReceived
-                              ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
-                              : "bg-white hover:bg-rose-50 text-rose-700 border border-rose-200"
-                          }`}
-                          title={lang === "en" ? "Mark as Not Arrived" : "تأكيد عدم وصول المنتج"}
-                        >
-                          <i className="ph-bold ph-x text-sm"></i>
-                          <span>{lang === "en" ? "Missing" : "لم يصل"}</span>
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => markNotReceived(idx)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center gap-1 active:scale-95 ${
+                          isNotReceived
+                            ? "bg-rose-600 text-white shadow-sm"
+                            : "bg-white hover:bg-rose-50 text-rose-700 border border-rose-300"
+                        }`}
+                        title={lang === "en" ? "Mark as Not Arrived" : "تأكيد عدم وصول المنتج"}
+                      >
+                        <i className="ph-bold ph-x text-xs"></i>
+                        <span>{lang === "en" ? "Missing" : "لم يصل"}</span>
+                      </button>
                     </div>
                   </div>
 
                   {/* Notes / Reason Field for Unreceived or Partial Items */}
                   {(isNotReceived || isPartial) && (
-                    <div className="mt-2.5 pt-2.5 border-t border-slate-200/80 flex items-center gap-2">
-                      <i className="ph-bold ph-chat-text text-slate-400 text-sm"></i>
+                    <div className="pt-1 flex items-center gap-2">
+                      <i className="ph-bold ph-chat-text text-slate-400 text-sm shrink-0"></i>
                       <input
                         type="text"
                         value={item.notes || ""}
                         onChange={(e) => updateItemNote(idx, e.target.value)}
                         placeholder={
                           isNotReceived
-                            ? (lang === "en" ? "Reason item did not arrive (e.g. Out of stock at warehouse, damaged...)" : "سبب عدم الاستلام (مثال: غير متوفر بالمستودع، تالف أثناء النقل...)")
-                            : (lang === "en" ? "Reason for partial quantity..." : "سبب النقص في الكمية المستلمة...")
+                            ? (lang === "en" ? "Reason not arrived..." : "سبب عدم الاستلام (مثال: غير متوفر بالمستودع، تالف...)")
+                            : (lang === "en" ? "Reason for partial..." : "سبب النقص في الكمية المستلمة...")
                         }
-                        className="flex-1 bg-white/80 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-400"
+                        className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-400"
                       />
                     </div>
                   )}
@@ -410,22 +421,22 @@ export function GoodsReceivingModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 sm:p-5 border-t border-slate-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-xs text-slate-500 font-bold flex items-center gap-2">
-            <i className="ph-bold ph-info text-emerald-600 text-base"></i>
+        <div className="p-3.5 sm:p-4 border-t border-slate-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-2.5">
+          <div className="text-[11px] text-slate-500 font-semibold flex items-center gap-1.5 text-center sm:text-right">
+            <i className="ph-bold ph-info text-emerald-600 text-sm shrink-0"></i>
             <span>
               {lang === "en"
-                ? "Clicking confirm will automatically add received quantities to your live stock."
-                : "الضغط على التأكيد سيضيف الكميات المستلمة فوراً وبشكل آلي إلى رصيد المخزون الفعلي."}
+                ? "Received items will be automatically added to your live branch stock."
+                : "تأكيد الاستلام سيقوم بتوريد الكميات فوراً وتحديث رصيد المخزون الفعلي."}
             </span>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               type="button"
               onClick={onClose}
               disabled={receiveMut.isPending}
-              className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold transition text-xs"
+              className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold transition text-xs"
             >
               {t("cancel")}
             </button>
@@ -434,9 +445,9 @@ export function GoodsReceivingModal({
               type="button"
               onClick={handleConfirmIntake}
               disabled={receiveMut.isPending || items.length === 0}
-              className="flex-[1.5] sm:flex-initial px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black transition shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 text-xs sm:text-sm disabled:opacity-50"
+              className="flex-[2] sm:flex-initial px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 text-xs sm:text-sm disabled:opacity-50 active:scale-[0.98]"
             >
-              <i className="ph-bold ph-check-fat text-base"></i>
+              <i className="ph-bold ph-check-circle text-base"></i>
               <span>
                 {receiveMut.isPending
                   ? (lang === "en" ? "Adding to Stock..." : "جاري إضافة الكميات للمخزون...")
