@@ -18,18 +18,24 @@ async function runWithDbTimeout<T>(operation: () => Promise<T>, timeoutMs = 2500
 // ─── Audit Header CRUD ────────────────────────────────────────────────────────
 
 export async function createAudit(input: {
-  auditType: "weekly" | "monthly";
+  auditType: "weekly" | "monthly" | string;
   auditorName: string;
   notes?: string | null;
 }): Promise<InventoryAudit> {
+  const dbAuditType = (input.auditType === "monthly" ? "monthly" : "weekly") as any;
+  const auditNote =
+    input.auditType !== "weekly" && input.auditType !== "monthly"
+      ? `[${input.auditType}] ${input.notes || ""}`.trim()
+      : input.notes ?? null;
+
   try {
     const res = await runWithDbTimeout(async () => {
       const [row] = await getDb()
         .insert(inventoryAudits)
         .values({
-          auditType: input.auditType,
+          auditType: dbAuditType,
           auditorName: input.auditorName,
-          notes: input.notes ?? null,
+          notes: auditNote,
           status: "draft",
         })
         .returning();
@@ -42,9 +48,9 @@ export async function createAudit(input: {
 
   const newAudit: InventoryAudit = {
     id: nextAuditId++,
-    auditType: input.auditType,
+    auditType: dbAuditType,
     auditorName: input.auditorName,
-    notes: input.notes ?? null,
+    notes: auditNote,
     status: "draft",
     createdAt: new Date(),
     updatedAt: new Date(),

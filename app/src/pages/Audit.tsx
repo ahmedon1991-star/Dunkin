@@ -88,7 +88,13 @@ export default function Audit() {
   if (!session) return null;
 
   // ─── حالة الجرد ─────────────────────────────────────────────────────────
-  const [auditType, setAuditType] = useState<"weekly" | "monthly">("weekly");
+  const [auditType, setAuditType] = useState<"weekly" | "monthly" | "custom">("weekly");
+  const [customPreset, setCustomPreset] = useState<"sunday_bakery" | "cups_packaging" | "coffee_syrup" | "manual">("sunday_bakery");
+  const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(new Set());
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [addProductSearch, setAddProductSearch] = useState("");
+
   const [auditorName, setAuditorName] = useState("");
   const [generalNotes, setGeneralNotes] = useState("");
   const [rows, setRows] = useState<AuditRow[]>([]);
@@ -101,7 +107,6 @@ export default function Audit() {
   const [auditId, setAuditId] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
 
   // ─── tRPC ────────────────────────────────────────────────────────────────
   const utils = trpc.useUtils();
@@ -126,9 +131,10 @@ export default function Audit() {
     onSuccess: () => {
       setPhase("completed");
       utils.audit.list.invalidate();
-      notify(lang === "en" ? "✅ Audit finalized successfully" : "✅ تم اعتماد الجرد نهائياً");
+      utils.inventory.list.invalidate();
+      notify(lang === "en" ? "✅ Audit finalized & live stock updated!" : "✅ تم اعتماد الجرد وتحديث كميات المخزون الحي مباشرة!");
     },
-    onError: () => notify(lang === "en" ? "Failed to finalize audit" : "تعذر الاعتماد"),
+    onError: () => notify(lang === "en" ? "Failed to finalize audit" : "تعذر الاعتماد وتحديث المخزون"),
   });
   const deleteMut = trpc.audit.delete.useMutation({
     onSuccess: () => {
@@ -137,14 +143,106 @@ export default function Audit() {
     },
   });
 
-  // ─── بناء صفوف الجرد عند تغيير نوعه أو تحميل المنتجات أو تغيير اللغة ─────
+  // ─── تطبيق الفلاتر الجاهزة (مثل جرد يوم الأحد) ────────────────────────────
+  const applyPresetSelection = useCallback((preset: "sunday_bakery" | "cups_packaging" | "coffee_syrup" | "manual", products: Product[]) => {
+    setCustomPreset(preset);
+    if (preset === "manual") return;
+
+    const newSelected = new Set<string>();
+    for (const p of products) {
+      const text = `${p.nameAr || ""} ${p.nameEn || ""} ${p.category || ""}`;
+      if (preset === "sunday_bakery") {
+        if (
+          p.category === "مخبوزات وساندوتشات" ||
+          p.category === "وجبات خفيفة ومكسرات" ||
+          /(?:بيغل|توست|كرواسون|مافن|خبز|دونات|بانكيك|BAGEL|TOAST|MUFFIN|DONUT|BREAD|CROISSANT)/i.test(text)
+        ) {
+          newSelected.add(p.code);
+        }
+      } else if (preset === "cups_packaging") {
+        if (
+          p.category.includes("تعبئة") ||
+          p.category.includes("تغليف") ||
+          /(?:كوب|أكواب|غطاء|أغطية|غلاف|سليف|صحن|شوك|ملاعق|سكاكين|شلمونة|ماصة|CUP|LID|SLEEVE|CARRIER|STRAW)/i.test(text)
+        ) {
+          newSelected.add(p.code);
+        }
+      } else if (preset === "coffee_syrup") {
+        if (
+          p.category.includes("قهوة") ||
+          p.category.includes("سيروب") ||
+          p.category.includes("صوص") ||
+          /(?:قهوة|إسبريسو|سيروب|صوص|شاي|حليب|بودرة|كوفي|COFFEE|TEA|MILK|SYRUP|SAUCE)/i.test(text)
+        ) {
+          newSelected.add(p.code);
+        }
+      }
+    }
+    setSelectedProductCodes(newSelected);
+  }, []);
+
+  // تهيئة أصناف جرد الأحد تلقائياً عند فتح الجرد المخصص لأول مرة
+  useEffect(() => {
+    if (productsQuery.data && selectedProductCodes.size === 0 && customPreset === "sunday_bakery") {
+      applyPresetSelection("sunday_bakery", productsQuery.data);
+    }
+  }, [productsQuery.data, selectedProductCodes.size, customPreset, applyPresetSelection]);
+
+  // ─── إضافة صنف مباشرة إلى الجرد الجاري ──────────────────────────────────
+  const addProductToCurrentAudit = (product: Product) => {
+    if (rows.some((r) => r.productCode === product.code)) {
+      notify(lang === "en" ? "Product already in audit!" : "الصنف موجود بالفعل في الجرد!");
+      return;
+    }
+    const packSize = extractPackSize(product.nameAr, product.nameEn, product.packSize);
+    const isCtnOrPkt = product.unitCode === "CTN" || product.unitCode === "PKT" || packSize > 1;
+
+    let sysPieces: number | null = null;
+    if (product.mode === "detailed") {
+      sysPieces = (product.packs ?? 0) * (product.packSize ?? packSize) + (product.loose ?? 0);
+    } else if (product.qty != null) {
+      if (product.unitCode === "CTN" || product.unitCode === "PKT") {
+        sysPieces = product.qty * packSize;
+      } else {
+        sysPieces = product.qty;
+      }
+    }
+
+    const newRow: AuditRow = {
+      productCode: product.code,
+      productName: getProductName(product),
+      category: getCategoryName(product.category),
+      unit: getUnitName(product.unitLabel),
+      unitCode: product.unitCode || "PCS",
+      packSize,
+      packsCount: "",
+      looseCount: "",
+      directQty: "",
+      isDualMode: isCtnOrPkt,
+      systemQty: product.qty ?? null,
+      systemPieces: sysPieces,
+      itemNotes: "",
+    };
+
+    setRows((prev) => [newRow, ...prev]);
+    setShowAddProductModal(false);
+    notify(lang === "en" ? `Added ${newRow.productName} to audit` : `تمت إضافة ${newRow.productName} إلى الجرد`);
+  };
+
+  // ─── بناء صفوف الجرد عند تغيير نوعه أو تحميل المنتجات أو تغيير الاختيار ─────
   useEffect(() => {
     if (!productsQuery.data) return;
     const products: Product[] = productsQuery.data;
-    const filtered =
-      auditType === "weekly"
-        ? products.filter((p) => WEEKLY_CATEGORIES.has(p.category))
-        : products;
+    let filtered: Product[] = [];
+
+    if (auditType === "weekly") {
+      filtered = products.filter((p) => WEEKLY_CATEGORIES.has(p.category));
+    } else if (auditType === "monthly") {
+      filtered = products;
+    } else {
+      // جرد مخصص (مثل جرد يوم الأحد أو الأصناف المختارة)
+      filtered = products.filter((p) => selectedProductCodes.has(p.code));
+    }
 
     const newRows: AuditRow[] = filtered.map((p) => {
       const packSize = extractPackSize(p.nameAr, p.nameEn, p.packSize);
@@ -178,7 +276,7 @@ export default function Audit() {
       };
     });
     setRows(newRows);
-  }, [productsQuery.data, auditType, lang]);
+  }, [productsQuery.data, auditType, selectedProductCodes, lang]);
 
   // ─── مساعدات التحديث والعد الميداني ─────────────────────────────────────────
   const notify = (msg: string) => {
@@ -603,35 +701,203 @@ ${a.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${a.notes}` : "
             {/* نوع الجرد */}
             <div className="mb-5">
               <label className="block text-sm font-bold text-slate-700 mb-2">{lang === "en" ? "Audit Type" : "نوع الجرد"}</label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   id="btn-type-weekly"
+                  type="button"
                   onClick={() => setAuditType("weekly")}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${
                     auditType === "weekly"
-                      ? "border-orange-500 bg-orange-50 text-orange-700"
+                      ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm font-bold"
                       : "border-slate-200 hover:border-slate-300 text-slate-600"
                   }`}
                 >
-                  <span className="text-2xl">🗓</span>
-                  <span className="font-bold text-sm">{lang === "en" ? "Weekly" : "أسبوعي"}</span>
-                  <span className="text-xs text-center opacity-70">{lang === "en" ? "Fast Consumables" : "مواد سريعة الاستهلاك"}</span>
+                  <span className="text-xl">🗓</span>
+                  <span className="font-bold text-xs md:text-sm">{lang === "en" ? "Weekly" : "أسبوعي"}</span>
+                  <span className="text-[10px] text-center opacity-70 leading-tight">{lang === "en" ? "Fast Items" : "سريع الاستهلاك"}</span>
                 </button>
                 <button
                   id="btn-type-monthly"
+                  type="button"
                   onClick={() => setAuditType("monthly")}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${
                     auditType === "monthly"
-                      ? "border-orange-500 bg-orange-50 text-orange-700"
+                      ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm font-bold"
                       : "border-slate-200 hover:border-slate-300 text-slate-600"
                   }`}
                 >
-                  <span className="text-2xl">📦</span>
-                  <span className="font-bold text-sm">{lang === "en" ? "Monthly" : "شهري"}</span>
-                  <span className="text-xs text-center opacity-70">{lang === "en" ? "All Items (256)" : "جميع الأصناف"}</span>
+                  <span className="text-xl">📦</span>
+                  <span className="font-bold text-xs md:text-sm">{lang === "en" ? "Monthly" : "شهري (الكل)"}</span>
+                  <span className="text-[10px] text-center opacity-70 leading-tight">{lang === "en" ? "All 256 Items" : "جميع الأصناف"}</span>
+                </button>
+                <button
+                  id="btn-type-custom"
+                  type="button"
+                  onClick={() => {
+                    setAuditType("custom");
+                    if (productsQuery.data && selectedProductCodes.size === 0) {
+                      applyPresetSelection("sunday_bakery", productsQuery.data);
+                    }
+                  }}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${
+                    auditType === "custom"
+                      ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm font-bold"
+                      : "border-slate-200 hover:border-slate-300 text-slate-600"
+                  }`}
+                >
+                  <span className="text-xl">🥐</span>
+                  <span className="font-bold text-xs md:text-sm">{lang === "en" ? "Sunday / Custom" : "جرد الأحد / مخصص"}</span>
+                  <span className="text-[10px] text-center opacity-70 leading-tight">{lang === "en" ? "Bakery & Picked" : "مخبوزات وتحديد"}</span>
                 </button>
               </div>
             </div>
+
+            {/* تفاصيل وخيارات الجرد المخصص (مثل جرد يوم الأحد) */}
+            {auditType === "custom" && (
+              <div className="mb-5 p-3.5 rounded-2xl bg-orange-50/80 border border-orange-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-orange-950 flex items-center gap-1">
+                    <i className="ph-bold ph-lightning text-orange-600"></i>
+                    {lang === "en" ? "Quick Pre-sets:" : "قوالب سريعة:"}
+                  </span>
+                  <span className="text-[11px] font-black text-orange-700 bg-white px-2.5 py-0.5 rounded-full border border-orange-200 shadow-xs">
+                    {lang === "en" ? `${selectedProductCodes.size} selected` : `تم تحديد ${selectedProductCodes.size} صنف`}
+                  </span>
+                </div>
+
+                {/* أزرار القوالب الجاهزة */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => productsQuery.data && applyPresetSelection("sunday_bakery", productsQuery.data)}
+                    className={`px-2.5 py-2 text-xs font-bold rounded-xl border transition text-right flex items-center gap-1.5 ${
+                      customPreset === "sunday_bakery"
+                        ? "bg-orange-500 text-white border-orange-500 shadow-sm"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>🥐</span>
+                    <span className="truncate">{lang === "en" ? "Sunday Bakery & Toast" : "جرد الأحد (مخبوزات وبيغل وتوست)"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => productsQuery.data && applyPresetSelection("cups_packaging", productsQuery.data)}
+                    className={`px-2.5 py-2 text-xs font-bold rounded-xl border transition text-right flex items-center gap-1.5 ${
+                      customPreset === "cups_packaging"
+                        ? "bg-orange-500 text-white border-orange-500 shadow-sm"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>🥤</span>
+                    <span className="truncate">{lang === "en" ? "Cups & Packaging" : "الأكواب ومواد التغليف"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => productsQuery.data && applyPresetSelection("coffee_syrup", productsQuery.data)}
+                    className={`px-2.5 py-2 text-xs font-bold rounded-xl border transition text-right flex items-center gap-1.5 ${
+                      customPreset === "coffee_syrup"
+                        ? "bg-orange-500 text-white border-orange-500 shadow-sm"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>☕</span>
+                    <span className="truncate">{lang === "en" ? "Coffee & Syrups" : "القهوة والمشروبات والسيروب"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCustomPreset("manual")}
+                    className={`px-2.5 py-2 text-xs font-bold rounded-xl border transition text-right flex items-center gap-1.5 ${
+                      customPreset === "manual"
+                        ? "bg-orange-500 text-white border-orange-500 shadow-sm"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>✍️</span>
+                    <span className="truncate">{lang === "en" ? "Manual Selection" : "تحديد يدوي مخصص"}</span>
+                  </button>
+                </div>
+
+                {/* صندوق البحث والتحديد التفاعلي */}
+                <div className="bg-white rounded-xl border border-orange-200/90 p-2.5 space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={pickerSearch}
+                      onChange={(e) => setPickerSearch(e.target.value)}
+                      placeholder={lang === "en" ? "Filter products..." : "ابحث لتحديد أصناف إضافية..."}
+                      className="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-orange-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!productsQuery.data) return;
+                        const filtered = productsQuery.data.filter((p) => {
+                          if (!pickerSearch.trim()) return true;
+                          const t = `${p.nameAr || ""} ${p.nameEn || ""} ${p.code} ${p.category}`.toLowerCase();
+                          return t.includes(pickerSearch.toLowerCase());
+                        });
+                        setSelectedProductCodes((prev) => {
+                          const next = new Set(prev);
+                          filtered.forEach((p) => next.add(p.code));
+                          return next;
+                        });
+                      }}
+                      className="px-2 py-1 text-[11px] font-bold text-slate-600 hover:text-orange-600 bg-slate-100 rounded-lg hover:bg-orange-50 transition"
+                    >
+                      {lang === "en" ? "Select All" : "تحديد الكل"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProductCodes(new Set())}
+                      className="px-2 py-1 text-[11px] font-bold text-slate-500 hover:text-red-600 bg-slate-100 rounded-lg hover:bg-red-50 transition"
+                    >
+                      {lang === "en" ? "Clear" : "إلغاء"}
+                    </button>
+                  </div>
+
+                  <div className="max-h-44 overflow-y-auto divide-y divide-slate-100 border border-slate-100 rounded-lg">
+                    {(productsQuery.data || [])
+                      .filter((p) => {
+                        if (!pickerSearch.trim()) return true;
+                        const t = `${p.nameAr || ""} ${p.nameEn || ""} ${p.code} ${p.category}`.toLowerCase();
+                        return t.includes(pickerSearch.toLowerCase());
+                      })
+                      .map((p) => {
+                        const isChecked = selectedProductCodes.has(p.code);
+                        return (
+                          <label
+                            key={p.code}
+                            className={`flex items-center gap-2 px-2.5 py-1.5 text-xs cursor-pointer hover:bg-orange-50/50 transition select-none ${
+                              isChecked ? "bg-orange-50/40 font-semibold" : ""
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                setSelectedProductCodes((prev) => {
+                                  const next = new Set(prev);
+                                  if (isChecked) next.delete(p.code);
+                                  else next.add(p.code);
+                                  return next;
+                                });
+                              }}
+                              className="w-4 h-4 rounded text-orange-500 focus:ring-orange-400 accent-orange-500"
+                            />
+                            <div className="flex-1 truncate">
+                              <span className="text-slate-800">{getProductName(p)}</span>
+                              <span className="text-[10px] text-slate-400 ml-1 mr-1">({p.code})</span>
+                            </div>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 shrink-0">
+                              {p.category}
+                            </span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* اسم القائم بالجرد */}
             <div className="mb-5">
@@ -665,7 +931,7 @@ ${a.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${a.notes}` : "
 
             <button
               id="btn-start-audit"
-              disabled={!auditorName.trim() || createMut.isPending || productsQuery.isLoading}
+              disabled={!auditorName.trim() || createMut.isPending || productsQuery.isLoading || (auditType === "custom" && rows.length === 0)}
               onClick={() => {
                 if (!auditorName.trim()) return;
                 createMut.mutate({ auditType, auditorName: auditorName.trim(), notes: generalNotes });
@@ -686,16 +952,21 @@ ${a.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${a.notes}` : "
           <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-8 text-center">
             <div className="text-5xl mb-4">✅</div>
             <h2 className="text-2xl font-extrabold text-green-800 mb-2">{lang === "en" ? "Audit Finalized!" : "تم اعتماد الجرد!"}</h2>
-            <p className="text-green-600 mb-6">
+            <p className="text-green-700 mb-6 font-medium">
               {lang === "en"
-                ? `Saved ${auditType} audit with `
-                : `تم حفظ جرد ${auditType === "weekly" ? "الأسبوعي" : "الشهري"} ورصد `}
-              <strong className="text-red-600">{deficitCount} {lang === "en" ? "items with deficit" : "صنف بعجز"}</strong>.
+                ? `Saved ${auditType} audit and updated live inventory for `
+                : `تم حفظ ${auditType === "weekly" ? "الجرد الأسبوعي" : auditType === "monthly" ? "الجرد الشهري" : "الجرد المخصص (يوم الأحد)"} وتحديث المخزون الحي لـ `}
+              <strong className="text-slate-900">{rows.length} {lang === "en" ? "items" : "صنف"}</strong>
+              {deficitCount > 0 ? (
+                <> (مع رصد <strong className="text-red-600">{deficitCount} صنف بعجز</strong>)</>
+              ) : (
+                <> (مطابق تماماً بدون عجز ✨)</>
+              )}.
             </p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={exportPdf}
-                className="px-5 py-2.5 rounded-xl bg-orange-500 text-white font-bold hover:bg-orange-600 transition-colors"
+                className="px-5 py-2.5 rounded-xl bg-orange-500 text-white font-bold hover:bg-orange-600 transition-colors shadow-md"
               >
                 📄 {lang === "en" ? "Export PDF Report" : "تصدير تقرير PDF"}
               </button>
@@ -736,15 +1007,15 @@ ${a.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${a.notes}` : "
             </div>
           </div>
 
-          {/* أدوات البحث والفلترة */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-4 flex flex-wrap gap-3">
+          {/* أدوات البحث والفلترة وإضافة الأصناف */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-4 flex flex-wrap items-center gap-3">
             <input
               id="audit-search"
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={lang === "en" ? "Search item name or code..." : "بحث باسم الصنف أو الكود..."}
-              className="flex-1 min-w-[200px] px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="flex-1 min-w-[180px] px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400"
             />
             <select
               id="audit-cat-filter"
@@ -759,6 +1030,18 @@ ${a.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${a.notes}` : "
                 </option>
               ))}
             </select>
+            <button
+              id="btn-open-add-product"
+              type="button"
+              onClick={() => {
+                setAddProductSearch("");
+                setShowAddProductModal(true);
+              }}
+              className="flex items-center gap-1 px-3.5 py-2 text-xs md:text-sm font-black rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-md transition-all active:scale-95 shrink-0"
+            >
+              <i className="ph-bold ph-plus-circle text-base"></i>
+              <span>{lang === "en" ? "+ Add Item to Audit" : "+ إضافة صنف للجرد"}</span>
+            </button>
             {phase === "draft" && (
               <span className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold border border-amber-200">
                 📝 {lang === "en" ? "Saved Draft" : "مسودة محفوظة"}
@@ -1280,16 +1563,18 @@ ${a.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${a.notes}` : "
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                           a.auditType === "weekly"
                             ? "bg-blue-100 text-blue-700"
-                            : "bg-purple-100 text-purple-700"
+                            : a.auditType === "monthly"
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-orange-100 text-orange-700"
                         }`}>
-                          {a.auditType === "weekly" ? "أسبوعي" : "شهري"}
+                          {a.auditType === "weekly" ? "أسبوعي" : a.auditType === "monthly" ? "شهري" : "مخصص / الأحد"}
                         </span>
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                           a.status === "completed"
                             ? "bg-green-100 text-green-700"
                             : "bg-amber-100 text-amber-700"
                         }`}>
-                          {a.status === "completed" ? "✅ معتمد" : "📝 مسودة"}
+                          {a.status === "completed" ? "✅ معتمد ومحدث للمخزون" : "📝 مسودة"}
                         </span>
                       </div>
                       <p className="text-sm font-semibold text-slate-700 mt-1">{getEmployeeName(a.auditorName)}</p>
@@ -1338,6 +1623,85 @@ ${a.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${a.notes}` : "
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal: إضافة صنف للجرد الجاري ─────────────────────────────── */}
+      {showAddProductModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in" dir="rtl">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-orange-50/60">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">➕</span>
+                <h3 className="font-extrabold text-slate-800 text-base">
+                  {lang === "en" ? "Add Item to Current Audit" : "إضافة صنف إلى الجرد الحالي"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddProductModal(false)}
+                className="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-500 flex items-center justify-center border border-slate-200 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+              <input
+                type="text"
+                value={addProductSearch}
+                onChange={(e) => setAddProductSearch(e.target.value)}
+                placeholder={lang === "en" ? "Search product name, code or category..." : "ابحث باسم الصنف، الكود، أو التصنيف..."}
+                autoFocus
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm"
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 divide-y divide-slate-100">
+              {productsQuery.data
+                ?.filter((p) => {
+                  if (rows.some((r) => r.productCode === p.code)) return false;
+                  if (!addProductSearch.trim()) return true;
+                  const q = addProductSearch.toLowerCase();
+                  return (
+                    (p.nameAr && p.nameAr.toLowerCase().includes(q)) ||
+                    (p.nameEn && p.nameEn.toLowerCase().includes(q)) ||
+                    p.code.toLowerCase().includes(q) ||
+                    p.category.toLowerCase().includes(q)
+                  );
+                })
+                .slice(0, 40)
+                .map((prod) => (
+                  <div key={prod.code} className="py-2.5 flex items-center justify-between gap-3 hover:bg-slate-50 px-2 rounded-xl transition">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-slate-800 text-sm truncate">{getProductName(prod)}</div>
+                      <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5 flex-wrap">
+                        <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[11px] text-slate-600">{prod.code}</span>
+                        <span>•</span>
+                        <span>{prod.category}</span>
+                        <span>•</span>
+                        <span className="text-orange-600 font-medium">
+                          المخزون الحالي: {prod.qty ?? (prod.packs ? `${prod.packs} كرتون` : "0")} {prod.unitLabel}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => addProductToCurrentAudit(prod)}
+                      className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-sm transition shrink-0 flex items-center gap-1 active:scale-95"
+                    >
+                      <span>+</span>
+                      <span>{lang === "en" ? "Add to Audit" : "إضافة للجرد"}</span>
+                    </button>
+                  </div>
+                ))}
+              {productsQuery.data?.filter((p) => !rows.some((r) => r.productCode === p.code)).length === 0 && (
+                <div className="text-center py-8 text-slate-400 text-sm">
+                  {lang === "en" ? "All products are already in this audit." : "جميع الأصناف مدرجة بالفعل في هذا الجرد."}
+                </div>
+              )}
             </div>
           </div>
         </div>

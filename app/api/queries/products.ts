@@ -827,3 +827,41 @@ export function closeOrArchiveBranchTransfer(input: {
 
   return t;
 }
+
+/** تطبيق نتائج الجرد الميداني وتحديث كميات المخزون الحي تلقائياً */
+export async function applyAuditCountsToStock(
+  items: Array<{
+    productCode: string;
+    actualQty: number | null;
+  }>,
+  meta?: {
+    auditorName?: string;
+    branchCode?: string;
+  }
+) {
+  for (const item of items) {
+    if (item.actualQty == null) continue;
+    const prod = memoryProducts.find((p) => p.code === item.productCode);
+    if (!prod) continue;
+
+    if (prod.mode === "detailed") {
+      const packSize = prod.packSize || 1;
+      const packs = Math.floor(item.actualQty / packSize);
+      const loose = item.actualQty % packSize;
+      await updateProduct(prod.id, { packs, loose }, {
+        updatedBy: `جرد المخزون (${meta?.auditorName || "المشرف"})`,
+        branchCode: meta?.branchCode,
+      });
+    } else {
+      const packSize = prod.packSize || 1;
+      let newQty = item.actualQty;
+      if ((prod.unitCode === "CTN" || prod.unitCode === "PKT") && packSize > 1) {
+        newQty = Math.floor(item.actualQty / packSize);
+      }
+      await updateProduct(prod.id, { qty: newQty }, {
+        updatedBy: `جرد المخزون (${meta?.auditorName || "المشرف"})`,
+        branchCode: meta?.branchCode,
+      });
+    }
+  }
+}

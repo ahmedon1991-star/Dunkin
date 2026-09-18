@@ -9,6 +9,7 @@ import {
   finalizeAudit,
   deleteAudit,
 } from "./queries/audits";
+import { applyAuditCountsToStock } from "./queries/products";
 
 const auditItemSchema = z.object({
   productCode: z.string().min(1),
@@ -21,11 +22,11 @@ const auditItemSchema = z.object({
 });
 
 export const auditRouter = createRouter({
-  /** إنشاء جرد جديد (مسودة) */
+  /** إنشاء جرد جديد (أسبوعي / شهري / مخصص ليوم الأحد أو أصناف محددة) */
   create: publicProcedure
     .input(
       z.object({
-        auditType: z.enum(["weekly", "monthly"]),
+        auditType: z.string().min(1),
         auditorName: z.string().min(1),
         notes: z.string().nullable().optional(),
       }),
@@ -62,19 +63,36 @@ export const auditRouter = createRouter({
       return { ok: true };
     }),
 
-  /** اعتماد الجرد نهائياً */
+  /** اعتماد الجرد نهائياً وتحديث رصيد المخزون الحي تلقائياً */
   finalize: publicProcedure
     .input(
       z.object({
         auditId: z.number().int(),
         items: z.array(auditItemSchema),
         notes: z.string().nullable().optional(),
+        auditorName: z.string().optional(),
+        branchCode: z.string().optional(),
+        updateStock: z.boolean().default(true),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       await upsertAuditItems(input.auditId, input.items);
       await finalizeAudit(input.auditId);
-      return { ok: true };
+
+      // تحديث كميات المخزون الحي مباشرة بأرقام الجرد المعتمدة
+      if (input.updateStock !== false) {
+        const auditor = input.auditorName || ctx.user?.fullName || "المشرف";
+        const branch = input.branchCode || ctx.user?.branchCode || "1011125";
+        await applyAuditCountsToStock(
+          input.items.map((it) => ({
+            productCode: it.productCode,
+            actualQty: it.actualQty,
+          })),
+          { auditorName: auditor, branchCode: branch }
+        );
+      }
+
+      return { ok: true, stockUpdated: input.updateStock !== false };
     }),
 
   /** حذف جرد - مخصص للأدمن فقط لمنع التلاعب بسجلات الجرد */
