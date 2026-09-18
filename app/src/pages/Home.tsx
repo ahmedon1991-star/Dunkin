@@ -384,60 +384,60 @@ export default function Home() {
 
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
+        <div className="max-w-7xl mx-auto px-2.5 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
             {/* Mobile Sidebar Toggle Button */}
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xl transition active:scale-95 shrink-0"
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:hidden w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-lg transition active:scale-95 shrink-0"
               aria-label="Toggle sidebar menu"
-              title={lang === "en" ? "Toggle Menu" : "فتح/إغلاق القائمة الجانبية"}
+              title={lang === "en" ? "Open Menu" : "فتح القائمة"}
             >
-              <i className={`ph-bold ${mobileMenuOpen ? "ph-x" : "ph-list"}`}></i>
+              <i className="ph-bold ph-list"></i>
             </button>
 
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-600/25 shrink-0">
-              <i className="ph ph-package text-2xl"></i>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-600/25 shrink-0">
+              <i className="ph ph-package text-xl sm:text-2xl"></i>
             </div>
-            <div>
-              <h1 className="text-base sm:text-lg font-black text-slate-900 leading-tight flex items-center gap-1.5">
+            <div className="min-w-0">
+              <h1 className="text-xs sm:text-base md:text-lg font-black text-slate-900 leading-tight flex items-center gap-1.5 truncate">
                 <span>{t("appTitle")}</span>
               </h1>
-              <p className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>{selectedBranch} — {items.length} {t("items")}</span>
+              <p className="text-[10px] sm:text-[11px] text-emerald-600 font-bold flex items-center gap-1 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <span className="truncate">{selectedBranch} — {items.length} {t("items")}</span>
               </p>
             </div>
           </div>
 
           {/* Top Quick Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Language Toggle Button */}
             <button
               onClick={toggleLang}
               title={t("langTitle")}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 sm:px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 text-xs"
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl font-bold transition flex items-center gap-1.5 text-xs"
             >
-              <i className="ph-bold ph-globe text-base text-blue-600"></i>
+              <i className="ph-bold ph-globe text-sm sm:text-base text-blue-600"></i>
               <span className="hidden sm:inline">{t("langBtn")}</span>
             </button>
 
             {/* Order Cart Button */}
             <button
               onClick={() => setShowOrder(true)}
-              className="relative bg-blue-50 text-blue-700 hover:bg-blue-100 px-2.5 sm:px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 border border-blue-200 text-xs shadow-2xs"
+              className="relative bg-blue-600 sm:bg-blue-50 text-white sm:text-blue-700 hover:bg-blue-700 sm:hover:bg-blue-100 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-bold transition flex items-center gap-1.5 sm:border sm:border-blue-200 text-xs shadow-sm"
               title={t("orderList")}
             >
-              <i className="ph-bold ph-shopping-cart text-base"></i>
+              <i className="ph-bold ph-shopping-cart text-sm sm:text-base"></i>
               <span className="hidden sm:inline">{t("orderList")}</span>
               {orderedItems.length > 0 && (
-                <span className="bg-red-500 text-white text-[10px] min-w-5 h-5 px-1 rounded-full flex items-center justify-center font-black animate-pulse">
+                <span className="bg-red-500 text-white text-[10px] min-w-4 sm:min-w-5 h-4 sm:h-5 px-1 rounded-full flex items-center justify-center font-black animate-pulse">
                   {orderedItems.length}
                 </span>
               )}
             </button>
 
-            {/* Goods Receiving Button */}
+            {/* Goods Receiving Button (Desktop/Tablet) */}
             <button
               id="btn-goods-receiving"
               onClick={() => {
@@ -448,18 +448,18 @@ export default function Home() {
                   setShowReceivingModal(true);
                 }
               }}
-              className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-2.5 sm:px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 border border-emerald-300 text-xs shadow-2xs"
+              className="hidden sm:flex bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-bold transition items-center gap-1.5 border border-emerald-300 text-xs shadow-2xs"
               title={lang === "en" ? "Receive and Confirm Delivery into Stock" : "استلام المنتجات وتوريد المخزون"}
             >
               <i className="ph-bold ph-package-receive text-base text-emerald-600"></i>
               <span className="hidden md:inline">{lang === "en" ? "Receive" : "استلام"}</span>
             </button>
 
-            {/* Branch Transfer Workflow Button */}
+            {/* Branch Transfer Workflow Button (Desktop/Tablet) */}
             <button
               id="btn-branch-transfers"
               onClick={() => setShowTransferModal(true)}
-              className="relative bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2.5 sm:px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 border border-indigo-200 text-xs shadow-2xs"
+              className="hidden sm:flex relative bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-bold transition items-center gap-1.5 border border-indigo-200 text-xs shadow-2xs"
               title={lang === "en" ? "Inter-Branch Transfer Requests & Inflow" : "طلب بضاعة من فرع آخر / تحويلات الفروع"}
             >
               <i className="ph-bold ph-arrows-left-right text-base text-indigo-600"></i>
@@ -475,10 +475,10 @@ export default function Home() {
             {session?.role === "admin" && (
               <button
                 onClick={() => navigate("/admin")}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 shadow-md shadow-purple-600/25 text-xs animate-in fade-in"
+                className="hidden sm:flex bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-xl font-bold transition items-center gap-1.5 shadow-md shadow-purple-600/25 text-xs animate-in fade-in"
               >
                 <i className="ph-bold ph-shield-check text-base"></i>
-                <span className="hidden sm:inline">{t("adminPanel")}</span>
+                <span className="hidden md:inline">{t("adminPanel")}</span>
               </button>
             )}
 
@@ -493,16 +493,51 @@ export default function Home() {
         </div>
       </header>
 
+      {/* ── Mobile Sidebar Drawer Backdrop ───────────────────── */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* ── Main Dashboard Container with Sidebar ─────────────── */}
-      <div className="flex-1 flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6 gap-4 sm:gap-6">
+      <div className="flex-1 flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-2 sm:px-4 py-3 sm:py-6 gap-3 sm:gap-6">
         
-        {/* ── Sidebar (المينيو الجانبية للمستخدم والفرع) ─────────────── */}
+        {/* ── Sidebar (Slide-Over Drawer on Mobile, Column on Desktop) ── */}
         <aside
-          className={`${
-            mobileMenuOpen ? "block" : "hidden"
-          } lg:block w-full lg:w-72 shrink-0 space-y-4`}
+          className={`fixed inset-y-0 ${
+            lang === "ar" ? "right-0" : "left-0"
+          } z-50 w-72 max-w-[85vw] bg-white p-4 shadow-2xl overflow-y-auto transition-transform duration-300 ease-in-out lg:static lg:z-auto lg:w-72 lg:p-0 lg:bg-transparent lg:shadow-none lg:overflow-visible shrink-0 ${
+            mobileMenuOpen
+              ? "translate-x-0"
+              : lang === "ar"
+              ? "translate-x-full lg:translate-x-0 pointer-events-none lg:pointer-events-auto"
+              : "-translate-x-full lg:translate-x-0 pointer-events-none lg:pointer-events-auto"
+          }`}
         >
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-sm sticky top-20">
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-sm lg:sticky lg:top-20">
+            {/* Mobile Drawer Top Header & Close Button */}
+            <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100 lg:hidden">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                  <i className="ph-bold ph-package"></i>
+                </div>
+                <div className="leading-tight">
+                  <p className="text-xs font-black text-slate-900">{t("appTitle")}</p>
+                  <p className="text-[10px] text-emerald-600 font-bold">{selectedBranch}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-95"
+                aria-label="Close menu"
+              >
+                <i className="ph-bold ph-x text-base"></i>
+              </button>
+            </div>
+
             {/* Sidebar Brand & Branch Header */}
             <div className="px-2 pb-3 mb-2 border-b border-slate-100 flex items-center justify-between">
               <div>
@@ -690,6 +725,32 @@ export default function Home() {
                   </div>
                 </div>
               </button>
+
+              {/* 7. Admin Panel Link for Admins in Sidebar */}
+              {session?.role === "admin" && (
+                <button
+                  onClick={() => {
+                    navigate("/admin");
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full text-start p-3 rounded-2xl transition flex items-center justify-between gap-3 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 shadow-2xs"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-lg bg-purple-600 text-white shadow-sm">
+                      <i className="ph-bold ph-shield-check"></i>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black truncate text-purple-950">
+                        {t("adminPanel")}
+                      </p>
+                      <p className="text-[10px] truncate text-purple-600">
+                        {lang === "ar" ? "إدارة الأصناف والفروع والموظفين" : "Manage products, branches & staff"}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-purple-600">❯</span>
+                </button>
+              )}
             </nav>
 
             {/* Branch Switcher In Sidebar */}
@@ -753,74 +814,74 @@ export default function Home() {
         </aside>
 
         {/* ── Main Content Area (منطقة المنتجات وجرد المخزون) ───────── */}
-        <main className="flex-1 min-w-0 space-y-4 sm:space-y-6">
-          {/* Top Quick KPI Overview */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-slate-400">{lang === "ar" ? "إجمالي الأصناف" : "Total Items"}</p>
-                <p className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">{stockStats.total}</p>
+        <main className="flex-1 min-w-0 space-y-3 sm:space-y-6">
+          {/* Top Quick KPI Overview - Compact 4-column strip on mobile, spacious cards on desktop */}
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-2 sm:p-4 border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-center sm:justify-between text-center sm:text-start">
+              <div className="min-w-0">
+                <p className="text-[9.5px] sm:text-[11px] font-bold text-slate-400 truncate">{lang === "ar" ? "إجمالي الأصناف" : "Total Items"}</p>
+                <p className="text-sm sm:text-2xl font-black text-slate-900 mt-0.5">{stockStats.total}</p>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
+              <div className="hidden sm:flex w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center text-xl shrink-0">
                 <i className="ph-bold ph-package"></i>
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-slate-400">{lang === "ar" ? "متوفر بالمخزون" : "In Stock"}</p>
-                <p className="text-xl sm:text-2xl font-black text-emerald-600 mt-0.5">{stockStats.inStock}</p>
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-2 sm:p-4 border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-center sm:justify-between text-center sm:text-start">
+              <div className="min-w-0">
+                <p className="text-[9.5px] sm:text-[11px] font-bold text-slate-400 truncate">{lang === "ar" ? "متوفر" : "In Stock"}</p>
+                <p className="text-sm sm:text-2xl font-black text-emerald-600 mt-0.5">{stockStats.inStock}</p>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+              <div className="hidden sm:flex w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 items-center justify-center text-xl shrink-0">
                 <i className="ph-bold ph-check-circle"></i>
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-slate-400">{lang === "ar" ? "منخفض أو نافد" : "Low / Out"}</p>
-                <p className="text-xl sm:text-2xl font-black text-amber-600 mt-0.5">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-2 sm:p-4 border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-center sm:justify-between text-center sm:text-start">
+              <div className="min-w-0">
+                <p className="text-[9.5px] sm:text-[11px] font-bold text-slate-400 truncate">{lang === "ar" ? "منخفض/نافد" : "Low / Out"}</p>
+                <p className="text-sm sm:text-2xl font-black text-amber-600 mt-0.5">
                   {stockStats.lowStock + stockStats.outOfStock}
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">
+              <div className="hidden sm:flex w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 items-center justify-center text-xl shrink-0">
                 <i className="ph-bold ph-warning-circle"></i>
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-slate-400">{lang === "ar" ? "في قائمة الطلب" : "In Order List"}</p>
-                <p className="text-xl sm:text-2xl font-black text-purple-600 mt-0.5">{stockStats.inOrder}</p>
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-2 sm:p-4 border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-center sm:justify-between text-center sm:text-start">
+              <div className="min-w-0">
+                <p className="text-[9.5px] sm:text-[11px] font-bold text-slate-400 truncate">{lang === "ar" ? "في الطلب" : "In Order"}</p>
+                <p className="text-sm sm:text-2xl font-black text-purple-600 mt-0.5">{stockStats.inOrder}</p>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shrink-0">
+              <div className="hidden sm:flex w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 items-center justify-center text-xl shrink-0">
                 <i className="ph-bold ph-shopping-cart-simple"></i>
               </div>
             </div>
           </div>
 
-          {/* Search & Filter Bar */}
-          <div className="bg-white rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <i className={`ph ph-magnifying-glass absolute top-1/2 ${lang === 'ar' ? 'right-4' : 'left-4'} -translate-y-1/2 text-slate-400 text-lg`}></i>
+          {/* Search & Filter Bar - Compact single row on mobile */}
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-2 sm:p-3.5 border border-slate-200/90 shadow-xs flex flex-row gap-2">
+            <div className="relative flex-1 min-w-0">
+              <i className={`ph ph-magnifying-glass absolute top-1/2 ${lang === 'ar' ? 'right-3 sm:right-4' : 'left-3 sm:left-4'} -translate-y-1/2 text-slate-400 text-base sm:text-lg`}></i>
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("searchPlaceholder")}
-                className={`w-full bg-slate-50 border border-slate-200 rounded-2xl ${lang === 'ar' ? 'pr-11 pl-4' : 'pl-11 pr-4'} py-2.5 text-slate-800 font-medium focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition text-sm`}
+                className={`w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl ${lang === 'ar' ? 'pr-8 sm:pr-11 pl-2.5 sm:pl-4' : 'pl-8 sm:pl-11 pr-2.5 sm:pr-4'} py-2 sm:py-2.5 text-slate-800 font-medium focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition text-xs sm:text-sm`}
               />
             </div>
-            <div className="w-full sm:w-56">
+            <div className="w-28 sm:w-56 shrink-0">
               <select
                 value={unitFilter}
                 onChange={(e) => setUnitFilter(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-slate-800 font-medium focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition text-sm cursor-pointer"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl px-2 sm:px-3.5 py-2 sm:py-2.5 text-slate-800 font-medium focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition text-xs sm:text-sm cursor-pointer truncate"
               >
                 <option value="ALL">{t("allUnits")}</option>
-                <option value="CTN">📦 CTN ({lang === 'ar' ? 'كرتون' : 'Carton'})</option>
-                <option value="PKT">📑 PKT ({lang === 'ar' ? 'باكيت' : 'Packet'})</option>
-                <option value="PCS">✨ PCS ({lang === 'ar' ? 'حبة' : 'Piece'})</option>
+                <option value="CTN">📦 CTN</option>
+                <option value="PKT">📑 PKT</option>
+                <option value="PCS">✨ PCS</option>
               </select>
             </div>
           </div>
@@ -1448,156 +1509,158 @@ const ProductCard = React.memo(function ProductCard({
 
   return (
     <div
-      className="bg-white rounded-2xl p-3.5 border border-slate-200/90 hover:border-blue-500/50 hover:shadow-lg transition-all duration-200 flex flex-col justify-between h-full relative group"
-      style={{ contentVisibility: "auto", containIntrinsicSize: "0 340px" }}
+      className="bg-white rounded-2xl p-2.5 sm:p-3.5 border border-slate-200/90 hover:border-blue-500/50 hover:shadow-lg transition-all duration-200 flex flex-col justify-between h-full relative group"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 220px" }}
     >
       <div>
         {/* Top Header Row of the Card: Code, Unit, and Stock Status */}
-        <div className="flex items-center justify-between gap-1.5 mb-2">
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-between gap-1.5 mb-1.5">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => onCopyCode(p.code)}
               title={lang === "en" ? "Click to copy code" : "اضغط لنسخ الكود"}
-              className="text-xs font-mono font-black bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 px-2 py-0.5 rounded-lg text-slate-700 transition flex items-center gap-1 shadow-2xs"
+              className="text-[11px] sm:text-xs font-mono font-black bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 px-1.5 py-0.5 rounded-lg text-slate-700 transition flex items-center gap-1 shadow-2xs"
             >
               <span>#{p.code}</span>
-              <i className="ph-bold ph-copy text-[10px] text-slate-400"></i>
+              <i className="ph-bold ph-copy text-[9px] text-slate-400"></i>
             </button>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
+            <span className="text-[9.5px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
               {unitName}
             </span>
           </div>
 
           {/* Smart Stock Status Badge */}
           {qtyVal === 0 ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
+            <span className="inline-flex items-center gap-1 text-[9.5px] sm:text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
-              {lang === "ar" ? "نفد" : "Out of Stock"}
+              {lang === "ar" ? "نفد" : "Out"}
             </span>
           ) : qtyVal <= 10 ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+            <span className="inline-flex items-center gap-1 text-[9.5px] sm:text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-              {lang === "ar" ? "منخفض" : "Low Stock"}
+              {lang === "ar" ? "منخفض" : "Low"}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+            <span className="inline-flex items-center gap-1 text-[9.5px] sm:text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               {lang === "ar" ? "متوفر" : "In Stock"}
             </span>
           )}
         </div>
 
-        {/* Product Image preview - Centered Square */}
-        {(() => {
-          const displayImg = p.imageUrl || getProductImage(p);
-          return (
-            <div className="flex justify-center my-2">
-              <div
-                className="w-32 h-32 sm:w-36 sm:h-36 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-2 flex items-center justify-center overflow-hidden cursor-pointer group/img shadow-2xs hover:shadow-md hover:border-blue-400/60 transition duration-200 relative"
-                onClick={() => onOpenHistory(p)}
-                title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
-              >
-                <img
-                  src={displayImg}
-                  alt={productName}
-                  loading="lazy"
-                  className="w-full h-full object-cover rounded-xl group-hover/img:scale-105 transition duration-300"
-                  onError={(e) => {
-                    const target = e.currentTarget as HTMLImageElement;
-                    const fallback = getCategoryFallbackImage(p.category);
-                    if (target.src !== fallback) {
-                      target.src = fallback;
-                    }
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity rounded-2xl flex items-end justify-center pb-1.5">
-                  <span className="text-[10px] font-bold text-white bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <i className="ph-bold ph-eye"></i>
-                    {lang === "en" ? "Details" : "سجل الحركة"}
-                  </span>
+        {/* Product Media Layout: Horizontal side-by-side on mobile, stacked on desktop */}
+        <div className="flex items-center gap-2.5 sm:block mb-2">
+          {/* Product Image preview */}
+          {(() => {
+            const displayImg = p.imageUrl || getProductImage(p);
+            return (
+              <div className="sm:flex sm:justify-center sm:my-2 shrink-0">
+                <div
+                  className="w-16 h-16 sm:w-32 sm:h-32 rounded-xl sm:rounded-2xl border border-slate-200/90 bg-slate-50/50 p-1 sm:p-2 flex items-center justify-center overflow-hidden cursor-pointer group/img shadow-2xs hover:shadow-md hover:border-blue-400/60 transition duration-200 relative"
+                  onClick={() => onOpenHistory(p)}
+                  title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
+                >
+                  <img
+                    src={displayImg}
+                    alt={productName}
+                    loading="lazy"
+                    className="w-full h-full object-cover rounded-lg sm:rounded-xl group-hover/img:scale-105 transition duration-300"
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      const fallback = getCategoryFallbackImage(p.category);
+                      if (target.src !== fallback) {
+                        target.src = fallback;
+                      }
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity rounded-xl sm:rounded-2xl hidden sm:flex items-end justify-center pb-1.5">
+                    <span className="text-[10px] font-bold text-white bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <i className="ph-bold ph-eye"></i>
+                      {lang === "en" ? "Details" : "سجل الحركة"}
+                    </span>
+                  </div>
                 </div>
               </div>
+            );
+          })()}
+
+          {/* Product Info (Title, Category, Last Update) */}
+          <div className="flex-1 min-w-0">
+            {/* Category Chip */}
+            <div className="flex items-center gap-1 mb-0.5">
+              <span className="text-[9.5px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                <span>{meta.icon}</span>
+                <span className="truncate max-w-[110px]">{p.category}</span>
+              </span>
             </div>
-          );
-        })()}
 
-        {/* Category Chip & Product Title */}
-        <div
-          className="cursor-pointer group/title mb-2"
-          onClick={() => onOpenHistory(p)}
-          title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
-        >
-          <div className="flex items-center gap-1 mb-1">
-            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md flex items-center gap-1">
-              <span>{meta.icon}</span>
-              <span>{p.category}</span>
-            </span>
-          </div>
+            {/* Product Title */}
+            <div
+              className="cursor-pointer group/title"
+              onClick={() => onOpenHistory(p)}
+              title={lang === "en" ? "Click to view stock history & latest update" : "اضغط لمعاينة آخر تحديث وسجل الحركات"}
+            >
+              <h4 className="text-xs sm:text-sm font-black text-slate-900 leading-tight sm:leading-snug group-hover/title:text-blue-600 transition line-clamp-2">
+                {productName}
+              </h4>
+              {secondaryName && (
+                <p className="text-[9.5px] sm:text-[10.5px] font-semibold text-slate-400 truncate mt-0.5" dir="ltr">
+                  {secondaryName}
+                </p>
+              )}
+            </div>
 
-          <div className="flex items-start justify-between gap-1.5">
-            <h4 className="text-sm font-black text-slate-900 leading-snug group-hover/title:text-blue-600 transition line-clamp-2">
-              {productName}
-            </h4>
-            <span className="w-5 h-5 rounded-full bg-slate-100 group-hover/title:bg-blue-50 text-slate-400 group-hover/title:text-blue-600 flex items-center justify-center shrink-0 transition text-xs">
-              <i className="ph-bold ph-info"></i>
-            </span>
+            {/* Latest Stock Update Snippet */}
+            {p.lastStockUpdate ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenHistory(p);
+                }}
+                className="mt-1 w-full flex items-center justify-between text-[9.5px] sm:text-[10.5px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg sm:rounded-xl bg-slate-50 hover:bg-blue-50/50 text-slate-700 transition border border-slate-200/80 shadow-2xs"
+                title={lang === "en" ? "Click to view full stock update details & history" : "اضغط لمعاينة تفاصيل آخر تحديث وسجل الحركات"}
+              >
+                <span className="flex items-center gap-1 text-slate-500 truncate">
+                  <i className="ph-bold ph-clock text-blue-600"></i>
+                  <span className="hidden sm:inline">{lang === "en" ? "Last Update:" : "آخر حركة:"}</span>
+                </span>
+                <span className={`font-black shrink-0 ${p.lastStockUpdate.changeType === "increase" ? "text-emerald-700" : "text-rose-600"}`}>
+                  {p.lastStockUpdate.changeType === "increase" ? `+${p.lastStockUpdate.delta}` : p.lastStockUpdate.delta} {unitName}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenHistory(p);
+                }}
+                className="mt-1 w-full flex items-center justify-between text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-lg sm:rounded-xl bg-slate-50/60 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition border border-dashed border-slate-200"
+                title={lang === "en" ? "Click to view stock history" : "اضغط لمعاينة سجل حركات الصنف"}
+              >
+                <span className="flex items-center gap-1">
+                  <i className="ph-bold ph-clock-counter-clockwise text-slate-400"></i>
+                  <span>{lang === "en" ? "Log" : "سجل الحركة"}</span>
+                </span>
+                <span className="text-blue-600 font-black text-[9px]">❯</span>
+              </button>
+            )}
           </div>
-          {secondaryName && (
-            <p className="text-[10.5px] font-semibold text-slate-400 truncate mt-0.5" dir="ltr">
-              {secondaryName}
-            </p>
-          )}
         </div>
-
-        {/* Latest Stock Update Indicator Pill */}
-        {p.lastStockUpdate ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenHistory(p);
-            }}
-            className="w-full mb-2 flex items-center justify-between text-[10.5px] font-bold px-2 py-1 rounded-xl bg-slate-50 hover:bg-blue-50/50 text-slate-700 transition border border-slate-200/80 shadow-2xs"
-            title={lang === "en" ? "Click to view full stock update details & history" : "اضغط لمعاينة تفاصيل آخر تحديث وسجل الحركات"}
-          >
-            <span className="flex items-center gap-1 text-slate-500">
-              <i className="ph-bold ph-clock text-blue-600"></i>
-              <span>{lang === "en" ? "Last Update:" : "آخر حركة:"}</span>
-            </span>
-            <span className={`font-black ${p.lastStockUpdate.changeType === "increase" ? "text-emerald-700" : "text-rose-600"}`}>
-              {p.lastStockUpdate.changeType === "increase" ? `+${p.lastStockUpdate.delta}` : p.lastStockUpdate.delta} {unitName}
-            </span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenHistory(p);
-            }}
-            className="w-full mb-2 flex items-center justify-between text-[10px] font-bold px-2 py-1 rounded-xl bg-slate-50/60 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition border border-dashed border-slate-200"
-            title={lang === "en" ? "Click to view stock history" : "اضغط لمعاينة سجل حركات الصنف"}
-          >
-            <span className="flex items-center gap-1">
-              <i className="ph-bold ph-clock-counter-clockwise text-slate-400"></i>
-              <span>{lang === "en" ? "Audit Log" : "سجل الحركات"}</span>
-            </span>
-            <span className="text-blue-600 font-black text-[10px]">{lang === "en" ? "Inspect ❯" : "معاينة ❯"}</span>
-          </button>
-        )}
       </div>
 
       {/* Card Controls & Stock Mutation Area */}
-      <div className="mt-auto space-y-1.5 pt-2 border-t border-slate-100">
+      <div className="mt-auto space-y-1.5 pt-1.5 border-t border-slate-100">
         {/* Mode Switcher Toggle */}
         <div className="flex items-center justify-between px-0.5">
-          <span className="text-[10.5px] font-bold text-slate-500">
+          <span className="text-[10px] sm:text-[10.5px] font-bold text-slate-500">
             {lang === "en" ? "Count Mode:" : "طريقة الجرد:"}
           </span>
           <button
             onClick={() => onPatch(p.id, { mode: isDetailed ? "simple" : "detailed" })}
             title={lang === "en" ? "Switch view mode" : "تبديل طريقة الجرد"}
-            className="text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 flex items-center gap-1 transition shadow-2xs"
+            className="text-[9.5px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 flex items-center gap-1 transition shadow-2xs"
           >
             <i className="ph-bold ph-arrows-clockwise text-blue-600"></i>
             {isDetailed ? (lang === "en" ? "Detailed" : "تفصيلي") : (lang === "en" ? "Simple" : "بسيط")}
@@ -1605,84 +1668,84 @@ const ProductCard = React.memo(function ProductCard({
         </div>
 
         {!isDetailed ? (
-          <>
+          <div className="space-y-1">
             <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-1 shadow-inner">
-              <span className="text-[11px] font-bold text-slate-700 px-1 flex items-center gap-1">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 px-1 flex items-center gap-1">
                 <i className="ph-bold ph-tag text-blue-600"></i> {t("availableQty")}:
               </span>
               <div className="flex items-center gap-1">
                 {stepBtn("qty", -1, "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-600 border border-slate-200 shadow-2xs", "ph-minus", false)}
-                {numInput("qty", "w-14 text-base py-0.5 border-slate-200 rounded-lg", "", "0")}
+                {numInput("qty", "w-12 sm:w-14 text-sm sm:text-base py-0.5 border-slate-200 rounded-lg", "", "0")}
                 {stepBtn("qty", 1, "bg-blue-600 hover:bg-blue-700 text-white shadow-sm", "ph-plus", false)}
               </div>
             </div>
-            <div className="bg-slate-900 text-white py-1.5 px-2.5 rounded-xl shadow-sm flex items-center justify-between">
-              <div>
-                <span className="text-[9.5px] font-bold text-slate-400 block leading-none">{t("totalStock")}</span>
-                <span className="text-[9.5px] text-emerald-400 font-bold">{t("directAudit")}</span>
+            <div className="bg-slate-900 text-white py-1 px-2 sm:py-1.5 sm:px-2.5 rounded-xl shadow-sm flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] sm:text-[9.5px] font-bold text-slate-400">{t("totalStock")}</span>
+                <span className="hidden sm:inline text-[9px] text-emerald-400 font-bold">• {t("directAudit")}</span>
               </div>
-              <span className="text-sm font-black font-sans text-amber-300">
-                {lang === 'ar' ? arNum(qtyVal) : qtyVal.toLocaleString("en-US")} <span className="text-[9.5px] text-white font-normal">{unitName}</span>
+              <span className="text-xs sm:text-sm font-black font-sans text-amber-300">
+                {lang === 'ar' ? arNum(qtyVal) : qtyVal.toLocaleString("en-US")} <span className="text-[9px] sm:text-[9.5px] text-white font-normal">{unitName}</span>
               </span>
             </div>
-          </>
+          </div>
         ) : (
-          <>
+          <div className="space-y-1">
             <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-1 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-700 px-1 flex items-center gap-1">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 px-1 flex items-center gap-1">
                 <i className="ph-bold ph-package text-blue-600 text-xs"></i> {t("numPacks")}:
               </span>
               <div className="flex items-center gap-1">
                 {stepBtn("packs", -1, "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-600 border border-slate-200", "ph-minus")}
-                {numInput("packs", "w-12 py-0.5 border-slate-200 rounded-md", "", "0")}
+                {numInput("packs", "w-11 sm:w-12 py-0.5 border-slate-200 rounded-md text-xs sm:text-sm", "", "0")}
                 {stepBtn("packs", 1, "bg-white hover:bg-blue-50 hover:text-blue-600 text-slate-600 border border-slate-200", "ph-plus")}
               </div>
             </div>
             <div className="flex items-center justify-between bg-amber-50/80 border border-amber-300/80 rounded-lg p-1 shadow-2xs">
-              <span className="text-[11px] font-bold text-amber-900 px-1 flex items-center gap-1">
+              <span className="text-[10px] sm:text-[11px] font-bold text-amber-900 px-1 flex items-center gap-1">
                 <i className="ph-bold ph-squares-four text-amber-600 text-xs"></i> {t("packSizeLabel")}:
               </span>
               <div className="flex items-center pl-0.5">
-                {numInput("packSize", "w-20 py-0.5 border-amber-300 rounded-md text-amber-900 placeholder:text-[10px] placeholder:font-normal focus:border-amber-500", "", t("writeCapacity"))}
+                {numInput("packSize", "w-16 sm:w-20 py-0.5 border-amber-300 rounded-md text-amber-900 placeholder:text-[9px] placeholder:font-normal focus:border-amber-500 text-xs sm:text-sm", "", t("writeCapacity"))}
               </div>
             </div>
             <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-1 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-700 px-1 flex items-center gap-1">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 px-1 flex items-center gap-1">
                 <i className="ph-bold ph-stack text-emerald-600 text-xs"></i> {t("loosePiecesCount")}:
               </span>
               <div className="flex items-center gap-1">
                 {stepBtn("loose", -1, "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-600 border border-slate-200", "ph-minus")}
-                {numInput("loose", "w-12 py-0.5 border-slate-200 rounded-md", "", "0")}
+                {numInput("loose", "w-11 sm:w-12 py-0.5 border-slate-200 rounded-md text-xs sm:text-sm", "", "0")}
                 {stepBtn("loose", 1, "bg-white hover:bg-emerald-50 hover:text-emerald-600 text-slate-600 border border-slate-200", "ph-plus")}
               </div>
             </div>
-            <div className="bg-slate-900 text-white py-1.5 px-2.5 rounded-xl shadow-sm flex items-center justify-between">
+            <div className="bg-slate-900 text-white py-1 px-2 sm:py-1.5 sm:px-2.5 rounded-xl shadow-sm flex items-center justify-between text-xs">
               <div>
-                <span className="text-[9.5px] font-bold text-slate-400 block leading-none">{t("actualTotal")}</span>
-                <span className="text-[9.5px] text-amber-400 font-mono">{formulaText}</span>
+                <span className="text-[9px] font-bold text-slate-400 block leading-none">{t("actualTotal")}</span>
+                <span className="text-[9px] text-amber-400 font-mono">{formulaText}</span>
               </div>
-              <span className="text-sm font-black font-sans text-amber-300">
-                {lang === 'ar' ? arNum(total) : total.toLocaleString("en-US")} <span className="text-[9.5px] text-white font-normal">{t("pcs")}</span>
+              <span className="text-xs sm:text-sm font-black font-sans text-amber-300">
+                {lang === 'ar' ? arNum(total) : total.toLocaleString("en-US")} <span className="text-[9px] text-white font-normal">{t("pcs")}</span>
               </span>
             </div>
-          </>
+          </div>
         )}
 
         {/* Order Cart Action Button */}
         <button
           onClick={() => onOrder(p.id)}
-          className={`w-full py-2 px-2.5 rounded-xl font-bold text-xs transition flex items-center justify-between shadow-2xs ${
+          className={`w-full py-1.5 px-2 sm:py-2 sm:px-2.5 rounded-xl font-bold text-xs transition flex items-center justify-between shadow-2xs ${
             hasOrder
               ? "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/25"
               : "bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/80"
           }`}
         >
           <span className="flex items-center gap-1.5">
-            <i className="ph-bold ph-shopping-cart text-sm"></i>
+            <i className="ph-bold ph-shopping-cart text-xs sm:text-sm"></i>
             <span>{hasOrder ? (lang === "en" ? "Order Added:" : "مطلوب لطلبية الغد:") : (lang === "en" ? "Add to Order" : "إضافة لقائمة الطلب")}</span>
           </span>
           {hasOrder ? (
-            <span className="bg-white/20 px-1.5 py-0.5 rounded-md text-[11px] font-black">
+            <span className="bg-white/20 px-1.5 py-0.5 rounded-md text-[10px] sm:text-[11px] font-black">
               {p.orderQty} {orderUnit === "CTN" ? (lang === "en" ? "CTN" : "كرتون") : orderUnit === "PKT" ? (lang === "en" ? "PKT" : "باكت") : (lang === "en" ? "PCS" : "حبة")}
             </span>
           ) : (

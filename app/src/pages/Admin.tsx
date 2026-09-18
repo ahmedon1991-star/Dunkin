@@ -175,29 +175,29 @@ export default function Admin() {
     <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col" dir={lang === "ar" ? "rtl" : "ltr"}>
       {/* ── Top Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur shadow-sm">
-        <div className="mx-auto flex w-full items-center justify-between px-4 py-3.5">
+        <div className="mx-auto flex w-full items-center justify-between px-2.5 sm:px-4 py-2.5 sm:py-3.5">
           {/* Logo & Sidebar Toggle */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden w-9 h-9 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition"
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:hidden w-9 h-9 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition shrink-0 active:scale-95"
               title="Toggle Menu"
             >
               <i className="ph-bold ph-list text-xl"></i>
             </button>
 
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-700 shadow-md shadow-purple-700/30">
-              <i className="ph-bold ph-shield-check text-white text-xl"></i>
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-purple-700 shadow-md shadow-purple-700/30 shrink-0">
+              <i className="ph-bold ph-shield-check text-white text-lg sm:text-xl"></i>
             </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-purple-600">Admin Control</p>
-              <h1 className="text-lg font-black text-slate-900 leading-tight">{t("adminPanel")}</h1>
+            <div className="min-w-0">
+              <p className="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-purple-600 truncate">Admin Control</p>
+              <h1 className="text-sm sm:text-lg font-black text-slate-900 leading-tight truncate">{t("adminPanel")}</h1>
             </div>
           </div>
 
           {/* Right Header Controls */}
-          <div className="flex items-center gap-2">
-            {/* Branch Selector Dropdown */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Branch Selector Dropdown (Desktop) */}
             <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm">
               <i className="ph-bold ph-storefront text-slate-500 text-base"></i>
               <span className="text-[11px] text-slate-500 font-normal">{lang === "en" ? "Branch:" : "الفرع:"}</span>
@@ -219,7 +219,7 @@ export default function Admin() {
             <button
               onClick={() => navigate("/")}
               title={lang === "en" ? "Enter Selected Branch & Inventory" : "دخول الفرع والجرد"}
-              className="rounded-xl bg-emerald-600 px-3 py-2 font-bold text-white shadow-sm hover:bg-emerald-700 text-xs flex items-center gap-1.5 transition"
+              className="rounded-xl bg-emerald-600 px-2.5 sm:px-3 py-1.5 sm:py-2 font-bold text-white shadow-sm hover:bg-emerald-700 text-xs flex items-center gap-1 sm:gap-1.5 transition active:scale-95"
             >
               <i className="ph-bold ph-storefront text-sm"></i>
               <span className="hidden sm:inline">{lang === "ar" ? "دخول الفرع" : "Enter Branch"}</span>
@@ -229,15 +229,15 @@ export default function Admin() {
             <button
               onClick={toggleLang}
               title={t("langTitle")}
-              className="rounded-xl bg-blue-600 px-3 py-2 font-black text-white shadow-sm hover:bg-blue-700 text-xs flex items-center gap-1.5 transition"
+              className="rounded-xl bg-blue-600 px-2.5 sm:px-3 py-1.5 sm:py-2 font-black text-white shadow-sm hover:bg-blue-700 text-xs flex items-center gap-1 sm:gap-1.5 transition active:scale-95"
             >
-              <i className="ph-bold ph-globe text-base"></i>
+              <i className="ph-bold ph-globe text-sm sm:text-base"></i>
               <span className="hidden sm:inline">{t("langBtn")}</span>
             </button>
 
-            {/* Admin session badge + logout */}
+            {/* Admin session badge + logout (Desktop) */}
             {session && (
-              <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 px-2.5 py-1.5 rounded-xl text-xs font-bold text-purple-900 shadow-sm">
+              <div className="hidden sm:flex items-center gap-2 bg-purple-50 border border-purple-200 px-2.5 py-1.5 rounded-xl text-xs font-bold text-purple-900 shadow-sm">
                 <i className="ph-bold ph-shield-check text-base text-purple-600"></i>
                 <div className="hidden md:flex flex-col leading-tight">
                   <span className="font-extrabold text-purple-950">{lang === "en" ? "System Admin" : "مدير النظام"}</span>
@@ -256,16 +256,51 @@ export default function Admin() {
         </div>
       </header>
 
+      {/* ── Mobile Sidebar Drawer Backdrop ───────────────────── */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* ── Main Dashboard Container with Sidebar ─────────────── */}
-      <div className="flex-1 flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6 gap-4 sm:gap-6">
+      <div className="flex-1 flex flex-col lg:flex-row w-full max-w-7xl mx-auto px-2 sm:px-4 py-3 sm:py-6 gap-3 sm:gap-6">
         
-        {/* ── Sidebar (المينيو الجانبية) ─────────────────────────── */}
+        {/* ── Sidebar (Slide-Over Drawer on Mobile, Column on Desktop) ── */}
         <aside
-          className={`${
-            mobileMenuOpen ? "block" : "hidden"
-          } lg:block w-full lg:w-72 shrink-0 space-y-4`}
+          className={`fixed inset-y-0 ${
+            lang === "ar" ? "right-0" : "left-0"
+          } z-50 w-72 max-w-[85vw] bg-white p-4 shadow-2xl overflow-y-auto transition-transform duration-300 ease-in-out lg:static lg:z-auto lg:w-72 lg:p-0 lg:bg-transparent lg:shadow-none lg:overflow-visible shrink-0 ${
+            mobileMenuOpen
+              ? "translate-x-0"
+              : lang === "ar"
+              ? "translate-x-full lg:translate-x-0 pointer-events-none lg:pointer-events-auto"
+              : "-translate-x-full lg:translate-x-0 pointer-events-none lg:pointer-events-auto"
+          }`}
         >
-          <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm sticky top-20">
+          <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm lg:sticky lg:top-20">
+            {/* Mobile Drawer Top Bar with Close Button */}
+            <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100 lg:hidden">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-700 text-white flex items-center justify-center font-bold text-sm">
+                  <i className="ph-bold ph-shield-check"></i>
+                </div>
+                <div className="leading-tight">
+                  <p className="text-xs font-black text-slate-900">{t("adminPanel")}</p>
+                  <p className="text-[10px] text-purple-600 font-bold">Admin Console</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-95"
+                aria-label="Close menu"
+              >
+                <i className="ph-bold ph-x text-base"></i>
+              </button>
+            </div>
+
             <div className="flex items-center justify-between px-2 pb-3 mb-2 border-b border-slate-100">
               <span className="text-xs font-black uppercase tracking-wider text-slate-400">
                 {lang === "ar" ? "أقسام الإدارة" : "Admin Sections"}
@@ -336,12 +371,63 @@ export default function Admin() {
             {/* Quick Action in Sidebar */}
             <div className="mt-4 pt-3 border-t border-slate-100">
               <button
-                onClick={() => setShowAdd(true)}
+                onClick={() => {
+                  setShowAdd(true);
+                  setMobileMenuOpen(false);
+                }}
                 className="w-full py-2.5 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-bold text-xs flex items-center justify-center gap-2 transition"
               >
                 <i className="ph-bold ph-plus-circle text-base"></i>
                 <span>{t("addProduct")}</span>
               </button>
+            </div>
+
+            {/* Mobile Branch Selector & Logout in Drawer */}
+            <div className="mt-4 pt-3 border-t border-slate-100 lg:hidden space-y-3">
+              <div>
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                  {lang === "ar" ? "الفرع المحدد" : "Selected Branch"}
+                </label>
+                <div className="relative bg-slate-50 border border-slate-200 rounded-2xl p-1.5 flex items-center gap-2">
+                  <i className="ph-bold ph-storefront text-slate-500 text-lg shrink-0 mr-1"></i>
+                  <select
+                    value={selectedBranch}
+                    onChange={(e) => setSelectedBranch(e.target.value)}
+                    className="bg-transparent border-none outline-none font-bold text-xs text-slate-800 w-full cursor-pointer"
+                  >
+                    {branchesList.map((b) => (
+                      <option key={b.branch_code} value={b.branch_code}>
+                        {b.branch_code} - {getBranchName(b.branch_code, b.branch_name)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {session && (
+                <div className="bg-purple-50/80 border border-purple-200/80 rounded-2xl p-2.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                      <i className="ph-bold ph-shield-check"></i>
+                    </div>
+                    <div className="min-w-0 leading-tight">
+                      <p className="text-xs font-black text-purple-950 truncate">
+                        {session.full_name}
+                      </p>
+                      <p className="text-[10px] text-purple-700 font-mono">
+                        #{session.employee_id} • Admin
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={logout}
+                    title={lang === "en" ? "Logout" : "تسجيل الخروج"}
+                    className="w-8 h-8 rounded-xl bg-white border border-purple-200 flex items-center justify-center text-slate-400 hover:text-red-600 transition shrink-0"
+                  >
+                    <i className="ph-bold ph-sign-out text-sm"></i>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </aside>
