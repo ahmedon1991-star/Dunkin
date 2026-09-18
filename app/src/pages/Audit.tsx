@@ -25,22 +25,53 @@ const WEEKLY_CATEGORIES = new Set([
   "وجبات خفيفة ومكسرات",
 ]);
 
-// ─── نوع صف الجرد المحلي ───────────────────────────────────────────────────
-type AuditRow = {
+// ─── استخراج سعة الكرتون/الباكت بذكاء من اسم الصنف أو خصائصه ────────────────
+export function extractPackSize(nameAr: string, nameEn: string, rawPackSize: number | null | undefined): number {
+  if (rawPackSize && Number(rawPackSize) > 1) return Number(rawPackSize);
+  const text = (nameAr || "") + " " + (nameEn || "");
+  const m = text.match(/(?:1\s*[×xX*]\s*|x\s*)(\d+)\s*(?:حبة|قطعة|باكت|علبة|كيس|ظرف|PCS|PKT|BAG|CAN|BTL|CTN)?/i);
+  if (m && Number(m[1]) > 1) return Number(m[1]);
+  const m2 = text.match(/(\d+)\s*(?:PCS|PKT|حبة|باكت)\b/i);
+  if (m2 && Number(m2[1]) > 1) return Number(m2[1]);
+  return 1;
+}
+
+// ─── نوع صف الجرد المحلي الذكي (يدعم الكراتين والحبات المفرطة) ────────────────
+export type AuditRow = {
   productCode: string;
   productName: string;
   category: string;
   unit: string;
-  systemQty: number | null;
-  actualQty: string; // نص لسهولة الإدخال
+  unitCode: "CTN" | "PKT" | "PCS" | string;
+  packSize: number; // سعة الكرتون/الباكت بالحبة
+  packsCount: string; // عدد الكراتين أو الباكتات المقفولة
+  looseCount: string; // عدد الحبات المفردة من الكرتون المفتوح
+  directQty: string; // إدخال مباشر بالحبة (عند إيقاف الوضع المزدوج)
+  isDualMode: boolean; // نمط العد المزدوج (كرتون + حبات فرط)
+  systemQty: number | null; // رصيد السستم الأصلي
+  systemPieces: number | null; // رصيد السستم بعد التحويل للحبة
   itemNotes: string;
 };
 
-const diffOf = (actual: string, system: number | null): number | null => {
-  const a = actual === "" ? null : parseInt(actual, 10);
-  if (a === null || isNaN(a)) return null;
-  if (system === null) return null;
-  return a - system;
+// حساب إجمالي الحبات الفعلية
+export const getRowActualPieces = (row: AuditRow): number | null => {
+  if (!row.isDualMode) {
+    if (row.directQty === "") return null;
+    const n = parseInt(row.directQty, 10);
+    return isNaN(n) ? null : n;
+  }
+  const hasInput = row.packsCount !== "" || row.looseCount !== "";
+  if (!hasInput) return null;
+  const p = row.packsCount === "" ? 0 : parseInt(row.packsCount, 10) || 0;
+  const l = row.looseCount === "" ? 0 : parseInt(row.looseCount, 10) || 0;
+  return p * row.packSize + l;
+};
+
+// حساب الفرق بالحبة (+ زيادة، - عجز)
+export const getRowDiffPieces = (row: AuditRow): number | null => {
+  const actual = getRowActualPieces(row);
+  if (actual === null || row.systemPieces === null) return null;
+  return actual - row.systemPieces;
 };
 
 export default function Audit() {
@@ -116,48 +147,105 @@ export default function Audit() {
         : products;
 
     const newRows: AuditRow[] = filtered.map((p) => {
-      const sys =
-        p.mode === "detailed"
-          ? (p.packs ?? 0) * (p.packSize ?? 1) + (p.loose ?? 0)
-          : (p.qty ?? null);
+      const packSize = extractPackSize(p.nameAr, p.nameEn, p.packSize);
+      const isCtnOrPkt = p.unitCode === "CTN" || p.unitCode === "PKT" || packSize > 1;
+
+      let sysPieces: number | null = null;
+      if (p.mode === "detailed") {
+        sysPieces = (p.packs ?? 0) * (p.packSize ?? packSize) + (p.loose ?? 0);
+      } else if (p.qty != null) {
+        if (p.unitCode === "CTN" || p.unitCode === "PKT") {
+          sysPieces = p.qty * packSize;
+        } else {
+          sysPieces = p.qty;
+        }
+      }
+
       return {
         productCode: p.code,
         productName: getProductName(p),
         category: getCategoryName(p.category),
         unit: getUnitName(p.unitLabel),
-        systemQty: sys,
-        actualQty: "",
+        unitCode: p.unitCode || "PCS",
+        packSize,
+        packsCount: "",
+        looseCount: "",
+        directQty: "",
+        isDualMode: isCtnOrPkt,
+        systemQty: p.qty ?? null,
+        systemPieces: sysPieces,
         itemNotes: "",
       };
     });
     setRows(newRows);
   }, [productsQuery.data, auditType, lang]);
 
-  // ─── مساعدات ─────────────────────────────────────────────────────────────
+  // ─── مساعدات التحديث والعد الميداني ─────────────────────────────────────────
   const notify = (msg: string) => {
     setToast(msg);
     clearTimeout(toastRef.current);
     toastRef.current = setTimeout(() => setToast(null), 2800);
   };
 
-  const updateRow = (code: string, field: "actualQty" | "itemNotes", value: string) => {
+  const updateRowField = (code: string, field: string, value: any) => {
     setRows((prev) =>
-      prev.map((r) => (r.productCode === code ? { ...r, [field]: value } : r)),
+      prev.map((r) => {
+        if (r.productCode !== code) return r;
+        const updated = { ...r, [field]: value };
+        // عند التحويل إلى الوضع المزدوج، نفكك الحبات إلى كراتين وحبات فرط
+        if (field === "isDualMode" && value === true && r.directQty !== "") {
+          const direct = parseInt(r.directQty, 10) || 0;
+          updated.packsCount = String(Math.floor(direct / r.packSize));
+          updated.looseCount = String(direct % r.packSize);
+        }
+        // عند التحويل للعد المباشر بالحبة، نحسب الإجمالي في directQty
+        if (field === "isDualMode" && value === false) {
+          const actual = getRowActualPieces(r);
+          if (actual !== null) {
+            updated.directQty = String(actual);
+          }
+        }
+        return updated;
+      })
+    );
+  };
+
+  const adjustCounter = (code: string, field: "packsCount" | "looseCount", delta: number) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.productCode !== code) return r;
+        const current = r[field] === "" ? 0 : parseInt(r[field], 10) || 0;
+        const next = Math.max(0, current + delta);
+        return { ...r, [field]: String(next) };
+      })
     );
   };
 
   const buildPayload = () =>
-    rows.map((r) => ({
-      productCode: r.productCode,
-      productName: r.productName,
-      category: r.category,
-      unit: r.unit,
-      systemQty: r.systemQty,
-      actualQty: r.actualQty === "" ? null : parseInt(r.actualQty, 10),
-      itemNotes: r.itemNotes || null,
-    }));
+    rows.map((r) => {
+      const actual = getRowActualPieces(r);
+      const diff = getRowDiffPieces(r);
+      let note = r.itemNotes || "";
+      if (r.isDualMode && (r.packsCount !== "" || r.looseCount !== "")) {
+        const p = r.packsCount || "0";
+        const l = r.looseCount || "0";
+        const breakdown = `[${p} كرتون + ${l} حبة]`;
+        if (!note.includes(breakdown)) {
+          note = note ? `${breakdown} - ${note}` : breakdown;
+        }
+      }
+      return {
+        productCode: r.productCode,
+        productName: r.productName,
+        category: r.category,
+        unit: r.unit,
+        systemQty: r.systemPieces,
+        actualQty: actual,
+        itemNotes: note || null,
+      };
+    });
 
-  // ─── الفلترة للعرض ───────────────────────────────────────────────────────
+  // ─── الفلترة والإحصاءات ───────────────────────────────────────────────────
   const categories = useMemo(() => Array.from(new Set(rows.map((r) => r.category))), [rows]);
 
   const visibleRows = useMemo(() => {
@@ -173,13 +261,21 @@ export default function Audit() {
     });
   }, [rows, catFilter, search]);
 
+  const filledCount = rows.filter((r) => getRowActualPieces(r) !== null).length;
   const deficitCount = rows.filter((r) => {
-    const d = diffOf(r.actualQty, r.systemQty);
+    const d = getRowDiffPieces(r);
     return d !== null && d < 0;
   }).length;
-  const filledCount = rows.filter((r) => r.actualQty !== "").length;
+  const surplusCount = rows.filter((r) => {
+    const d = getRowDiffPieces(r);
+    return d !== null && d > 0;
+  }).length;
+  const matchCount = rows.filter((r) => {
+    const d = getRowDiffPieces(r);
+    return d === 0;
+  }).length;
 
-  // ─── تصدير PDF ───────────────────────────────────────────────────────────
+  // ─── إرسال للأدمن وتصدير PDF ─────────────────────────────────────────────
   const handleSendAuditToAdmin = async () => {
     const empName = auditorName || session?.full_name || (lang === "en" ? "Auditor" : "المحرر");
     const empId = session?.employee_id || "#101";
@@ -188,13 +284,14 @@ export default function Audit() {
     const bName = bObj ? bObj.branch_name : `فرع ${bCode}`;
 
     const payloadItems = rows.map((r) => {
-      const diff = diffOf(r.actualQty, r.systemQty);
+      const actual = getRowActualPieces(r);
+      const diff = getRowDiffPieces(r);
       return {
         code: r.productCode,
         nameAr: r.productName,
         unit: r.unit,
-        systemQty: r.systemQty ?? undefined,
-        actualQty: r.actualQty === "" ? undefined : parseInt(r.actualQty, 10) || 0,
+        systemQty: r.systemPieces ?? undefined,
+        actualQty: actual ?? undefined,
         diff: diff ?? undefined,
       };
     });
@@ -229,16 +326,29 @@ export default function Audit() {
       auditorName: auditorName || "—",
       createdAt: new Date().toISOString(),
       notes: generalNotes || null,
-      items: rows.map((r) => ({
-        productCode: r.productCode,
-        productName: r.productName,
-        category: r.category,
-        unit: r.unit,
-        systemQty: r.systemQty,
-        actualQty: r.actualQty === "" ? null : parseInt(r.actualQty, 10),
-        difference: diffOf(r.actualQty, r.systemQty),
-        itemNotes: r.itemNotes || null,
-      })),
+      items: rows.map((r) => {
+        const actual = getRowActualPieces(r);
+        const diff = getRowDiffPieces(r);
+        let note = r.itemNotes || "";
+        if (r.isDualMode && (r.packsCount !== "" || r.looseCount !== "")) {
+          const p = r.packsCount || "0";
+          const l = r.looseCount || "0";
+          const breakdown = `[${p} كرتون + ${l} حبة]`;
+          if (!note.includes(breakdown)) {
+            note = note ? `${breakdown} - ${note}` : breakdown;
+          }
+        }
+        return {
+          productCode: r.productCode,
+          productName: r.productName,
+          category: r.category,
+          unit: r.unit,
+          systemQty: r.systemPieces,
+          actualQty: actual,
+          difference: diff,
+          itemNotes: note || null,
+        };
+      }),
     }).catch(() => notify(lang === "en" ? "Failed to generate PDF" : "تعذر توليد PDF"));
   };
 
@@ -248,9 +358,9 @@ export default function Audit() {
       return;
     }
 
-    const deficitCount = rows.filter((r) => r.actualQty !== "" && diffOf(r.actualQty, r.systemQty) !== null && (diffOf(r.actualQty, r.systemQty) as number) < 0).length;
-    const surplusCount = rows.filter((r) => r.actualQty !== "" && diffOf(r.actualQty, r.systemQty) !== null && (diffOf(r.actualQty, r.systemQty) as number) > 0).length;
-    const exactCount = rows.filter((r) => r.actualQty !== "" && diffOf(r.actualQty, r.systemQty) === 0).length;
+    const deficitCount = rows.filter((r) => getRowActualPieces(r) !== null && getRowDiffPieces(r) !== null && (getRowDiffPieces(r) as number) < 0).length;
+    const surplusCount = rows.filter((r) => getRowActualPieces(r) !== null && getRowDiffPieces(r) !== null && (getRowDiffPieces(r) as number) > 0).length;
+    const exactCount = rows.filter((r) => getRowActualPieces(r) !== null && getRowDiffPieces(r) === 0).length;
 
     const typeStr = auditType === "weekly" ? (lang === "ar" ? "جرد أسبوعي" : "Weekly Audit") : (lang === "ar" ? "جرد شهري" : "Monthly Audit");
     const dateStr = new Date().toLocaleString(lang === "ar" ? "ar-EG" : "en-US");
@@ -656,8 +766,239 @@ ${a.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${a.notes}` : "
             )}
           </div>
 
-          {/* جدول الإدخال */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          {/* ─── عرض الجوال: بطاقات مريحة للمس والعد الميداني ─── */}
+          <div className="block md:hidden space-y-3">
+            {visibleRows.map((row, idx) => {
+              const actualPieces = getRowActualPieces(row);
+              const diff = getRowDiffPieces(row);
+              const isDeficit = diff !== null && diff < 0;
+              const isSurplus = diff !== null && diff > 0;
+              const isMatch = diff === 0;
+
+              return (
+                <div
+                  key={row.productCode}
+                  className={`bg-white rounded-2xl border p-4 shadow-sm transition-all ${
+                    isDeficit
+                      ? "border-red-300 bg-red-50/40"
+                      : isSurplus
+                      ? "border-emerald-300 bg-emerald-50/30"
+                      : actualPieces !== null
+                      ? "border-blue-300 bg-blue-50/20"
+                      : "border-slate-200"
+                  }`}
+                >
+                  {/* رأس البطاقة */}
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">
+                          #{idx + 1} {row.productCode}
+                        </span>
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                          {row.category}
+                        </span>
+                        <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-bold">
+                          {row.unit}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-slate-900 text-sm mt-1 leading-snug">
+                        {row.productName}
+                      </h4>
+                    </div>
+
+                    {/* تعديل سعة الكرتون */}
+                    {row.packSize > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = prompt(
+                            lang === "en"
+                              ? "Enter carton capacity in pieces:"
+                              : "أدخل سعة الكرتون (عدد الحبات بالكرتون):",
+                            String(row.packSize)
+                          );
+                          if (v && !isNaN(Number(v)) && Number(v) > 0) {
+                            updateRowField(row.productCode, "packSize", Number(v));
+                          }
+                        }}
+                        className="text-[10px] text-amber-800 bg-amber-100/70 hover:bg-amber-200 px-2 py-1 rounded-lg border border-amber-300 font-bold shrink-0 flex items-center gap-1"
+                        title="تعديل سعة الكرتون"
+                      >
+                        <span>📦 1 كرتون = {row.packSize} حبة</span>
+                        <i className="ph-bold ph-pencil-simple text-xs"></i>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* رصيد السستم */}
+                  <div className="bg-slate-50 rounded-xl p-2.5 mb-3 flex items-center justify-between border border-slate-100">
+                    <span className="text-xs text-slate-500 font-bold">
+                      {lang === "en" ? "System Balance:" : "رصيد السستم:"}
+                    </span>
+                    <div className="text-left" dir="ltr">
+                      <span className="text-sm font-black text-slate-800 font-mono">
+                        {row.systemPieces ?? "—"} {lang === "en" ? "PCS" : "حبة"}
+                      </span>
+                      {row.packSize > 1 && row.systemPieces !== null && (
+                        <span className="text-xs text-slate-400 font-bold mr-1.5 block">
+                          ({Math.floor(row.systemPieces / row.packSize)} كرتون + {row.systemPieces % row.packSize} حبة)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* حقول الإدخال الفعلي */}
+                  {row.isDualMode ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* كراتين مقفولة */}
+                        <div className="bg-amber-50/60 rounded-xl p-2.5 border border-amber-200/80">
+                          <label className="block text-[11px] font-black text-amber-900 mb-1 text-center">
+                            📦 كراتين مقفولة
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => adjustCounter(row.productCode, "packsCount", -1)}
+                              className="w-8 h-8 rounded-lg bg-white border border-amber-300 font-black text-slate-700 active:scale-95 flex items-center justify-center shrink-0"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min={0}
+                              value={row.packsCount}
+                              onChange={(e) => updateRowField(row.productCode, "packsCount", e.target.value)}
+                              placeholder="0"
+                              className="w-full text-center py-1 font-black text-base rounded-lg border border-amber-300 bg-white focus:ring-2 focus:ring-amber-400 outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => adjustCounter(row.productCode, "packsCount", 1)}
+                              className="w-8 h-8 rounded-lg bg-amber-500 text-white font-black active:scale-95 flex items-center justify-center shrink-0"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* حبات مفردة من كرتون مفتوح */}
+                        <div className="bg-blue-50/60 rounded-xl p-2.5 border border-blue-200/80">
+                          <label className="block text-[11px] font-black text-blue-900 mb-1 text-center">
+                            🔘 حبات فرط (مفتوحة)
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => adjustCounter(row.productCode, "looseCount", -1)}
+                              className="w-8 h-8 rounded-lg bg-white border border-blue-300 font-black text-slate-700 active:scale-95 flex items-center justify-center shrink-0"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min={0}
+                              value={row.looseCount}
+                              onChange={(e) => updateRowField(row.productCode, "looseCount", e.target.value)}
+                              placeholder="0"
+                              className="w-full text-center py-1 font-black text-base rounded-lg border border-blue-300 bg-white focus:ring-2 focus:ring-blue-400 outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => adjustCounter(row.productCode, "looseCount", 1)}
+                              className="w-8 h-8 rounded-lg bg-blue-500 text-white font-black active:scale-95 flex items-center justify-center shrink-0"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ملخص الإجمالي المحسوب */}
+                      <div className="flex items-center justify-between px-2 pt-1 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => updateRowField(row.productCode, "isDualMode", false)}
+                          className="text-[11px] text-slate-400 hover:text-orange-600 underline font-medium"
+                        >
+                          عد بالحبة مباشرة فقط
+                        </button>
+                        {actualPieces !== null && (
+                          <span className="font-extrabold text-blue-700 bg-blue-100/80 px-2.5 py-0.5 rounded-lg border border-blue-200">
+                            الفعلي: {actualPieces} حبة
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          value={row.directQty}
+                          onChange={(e) => updateRowField(row.productCode, "directQty", e.target.value)}
+                          placeholder="أدخل عدد الحبات الكلي..."
+                          className="flex-1 px-3 py-2 text-center rounded-xl border border-slate-300 font-black text-base bg-white focus:ring-2 focus:ring-orange-400 outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updateRowField(row.productCode, "isDualMode", true)}
+                          className="px-3 py-2 rounded-xl bg-orange-100 text-orange-800 text-xs font-black border border-orange-200 shrink-0"
+                        >
+                          📦 تفعيل عد [كرتون + حبة فرط]
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* الفرق والملاحظات */}
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-slate-500">الفرق:</span>
+                      {diff !== null ? (
+                        <span
+                          className={`px-2.5 py-0.5 rounded-lg text-xs font-black ${
+                            isDeficit
+                              ? "bg-red-100 text-red-700 border border-red-300"
+                              : isSurplus
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              : "bg-blue-100 text-blue-800 border border-blue-300"
+                          }`}
+                        >
+                          {diff > 0 ? `+${diff}` : diff} حبة
+                          {row.packSize > 1 && Math.abs(diff) >= row.packSize && (
+                            <span className="mr-1 opacity-80 text-[10px]">
+                              ({diff > 0 ? "+" : "-"}{Math.floor(Math.abs(diff) / row.packSize)} كرتون و {Math.abs(diff) % row.packSize} حبة)
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-300 font-bold">—</span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={row.itemNotes}
+                      onChange={(e) => updateRowField(row.productCode, "itemNotes", e.target.value)}
+                      placeholder="ملاحظات (تالف/منتهي)..."
+                      className="w-36 text-xs px-2 py-1 rounded-lg border border-slate-200 bg-white"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+
+            {visibleRows.length === 0 && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
+                لا توجد نتائج للفلتر المحدد
+              </div>
+            )}
+          </div>
+
+          {/* ─── عرض الشاشات الكبيرة: جدول متقدم مع حقول العد المزدوج ─── */}
+          <div className="hidden md:block bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-800 text-white text-xs">
@@ -665,71 +1006,162 @@ ${a.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${a.notes}` : "
                   <th className={`px-3 py-3 ${lang === 'ar' ? 'text-right' : 'text-left'} font-bold`}>{lang === "en" ? "Product & Code" : "الصنف والرمز"}</th>
                   <th className={`px-3 py-3 ${lang === 'ar' ? 'text-right' : 'text-left'} font-bold hidden md:table-cell`}>{lang === "en" ? "Category" : "التصنيف"}</th>
                   <th className="px-3 py-3 text-center font-bold w-20">{lang === "en" ? "Unit" : "الوحدة"}</th>
-                  <th className="px-3 py-3 text-center font-bold w-24">{lang === "en" ? "System Qty" : "رصيد السستم"}</th>
-                  <th className="px-3 py-3 text-center font-bold w-28">{lang === "en" ? "Actual Qty" : "الرصيد الفعلي"}</th>
-                  <th className="px-3 py-3 text-center font-bold w-20">{lang === "en" ? "Diff (+/-)" : "الفرق"}</th>
-                  <th className={`px-3 py-3 ${lang === 'ar' ? 'text-right' : 'text-left'} font-bold w-32 hidden lg:table-cell`}>{lang === "en" ? "Notes" : "ملاحظات"}</th>
+                  <th className="px-3 py-3 text-center font-bold w-28">{lang === "en" ? "System Qty" : "رصيد السستم"}</th>
+                  <th className="px-3 py-3 text-center font-bold w-64">{lang === "en" ? "Actual Count" : "الرصيد الفعلي (كرتون + حبات فرط)"}</th>
+                  <th className="px-3 py-3 text-center font-bold w-32">{lang === "en" ? "Diff (+/-)" : "الفرق"}</th>
+                  <th className={`px-3 py-3 ${lang === 'ar' ? 'text-right' : 'text-left'} font-bold w-36 hidden lg:table-cell`}>{lang === "en" ? "Notes" : "ملاحظات"}</th>
                 </tr>
               </thead>
               <tbody>
                 {visibleRows.map((row, idx) => {
-                  const diff = diffOf(row.actualQty, row.systemQty);
+                  const actualPieces = getRowActualPieces(row);
+                  const diff = getRowDiffPieces(row);
                   const isDeficit = diff !== null && diff < 0;
                   const isSurplus = diff !== null && diff > 0;
                   const isMatch = diff === 0;
+
                   return (
                     <tr
                       key={row.productCode}
                       className={`border-t border-slate-100 transition-colors ${
                         isDeficit
-                          ? "bg-red-50 hover:bg-red-100/60"
+                          ? "bg-red-50/70 hover:bg-red-100/60"
+                          : isSurplus
+                          ? "bg-emerald-50/40 hover:bg-emerald-100/50"
                           : idx % 2 === 0
                           ? "bg-white hover:bg-slate-50"
                           : "bg-slate-50/60 hover:bg-slate-100/60"
                       }`}
                     >
-                      <td className="px-3 py-2.5 text-slate-400 text-xs">{idx + 1}</td>
+                      <td className="px-3 py-2.5 text-slate-400 text-xs text-center">{idx + 1}</td>
                       <td className="px-3 py-2.5">
                         <div className="font-semibold text-slate-800 leading-tight">{row.productName}</div>
-                        <div className="text-xs text-slate-400 font-mono">{row.productCode}</div>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-xs text-slate-400 font-mono">{row.productCode}</span>
+                          {row.packSize > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const v = prompt(
+                                  lang === "en" ? "Carton capacity in pieces:" : "أدخل سعة الكرتون (عدد الحبات بالكرتون):",
+                                  String(row.packSize)
+                                );
+                                if (v && !isNaN(Number(v)) && Number(v) > 0) {
+                                  updateRowField(row.productCode, "packSize", Number(v));
+                                }
+                              }}
+                              className="text-[10px] text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded font-bold flex items-center gap-1"
+                              title="تعديل سعة الكرتون"
+                            >
+                              <span>📦 1 كرتون = {row.packSize} حبة</span>
+                              <i className="ph-bold ph-pencil-simple text-[9px]"></i>
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2.5 hidden md:table-cell">
-                        <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                        <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full font-bold">
                           {row.category}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-center text-xs text-slate-500 font-medium">
+                      <td className="px-3 py-2.5 text-center text-xs text-slate-600 font-medium">
                         {row.unit}
                       </td>
                       <td className="px-3 py-2.5 text-center font-bold text-slate-700">
-                        {row.systemQty ?? "—"}
+                        <div className="font-mono text-sm">{row.systemPieces ?? "—"} حبة</div>
+                        {row.packSize > 1 && row.systemPieces !== null && (
+                          <div className="text-[11px] text-slate-400 font-normal">
+                            ({Math.floor(row.systemPieces / row.packSize)} كرتون + {row.systemPieces % row.packSize} حبة)
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-center">
-                        <input
-                          id={`actual-${row.productCode}`}
-                          type="number"
-                          min={0}
-                          value={row.actualQty}
-                          onChange={(e) => updateRow(row.productCode, "actualQty", e.target.value)}
-                          placeholder="—"
-                          className="w-20 px-2 py-1.5 text-center rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-400 font-bold text-slate-800 bg-white"
-                        />
+                        {row.isDualMode ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <div className="flex flex-col items-center">
+                                <span className="text-[10px] font-bold text-amber-900 mb-0.5">📦 كرتون مقفول</span>
+                                <input
+                                  id={`packs-${row.productCode}`}
+                                  type="number"
+                                  min={0}
+                                  value={row.packsCount}
+                                  onChange={(e) => updateRowField(row.productCode, "packsCount", e.target.value)}
+                                  placeholder="0"
+                                  className="w-16 px-1.5 py-1 text-center rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold text-sm bg-white"
+                                />
+                              </div>
+                              <span className="text-slate-400 font-bold mt-3.5">+</span>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[10px] font-bold text-blue-900 mb-0.5">🔘 حبات مفردة</span>
+                                <input
+                                  id={`loose-${row.productCode}`}
+                                  type="number"
+                                  min={0}
+                                  value={row.looseCount}
+                                  onChange={(e) => updateRowField(row.productCode, "looseCount", e.target.value)}
+                                  placeholder="0"
+                                  className="w-16 px-1.5 py-1 text-center rounded-lg border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 font-bold text-sm bg-white"
+                                />
+                              </div>
+                            </div>
+                            {actualPieces !== null ? (
+                              <div className="text-[11px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                = {actualPieces} حبة
+                                {row.packSize > 1 && ` (${Math.floor(actualPieces / row.packSize)} كرتون و ${actualPieces % row.packSize} حبة)`}
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-400">أدخل الكراتين أو الحبات</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => updateRowField(row.productCode, "isDualMode", false)}
+                              className="text-[10px] text-slate-400 hover:text-orange-600 underline font-medium"
+                            >
+                              عد بالحبة فقط
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-1">
+                            <input
+                              id={`actual-${row.productCode}`}
+                              type="number"
+                              min={0}
+                              value={row.directQty}
+                              onChange={(e) => updateRowField(row.productCode, "directQty", e.target.value)}
+                              placeholder="أدخل الحبات..."
+                              className="w-24 px-2 py-1.5 text-center rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-400 font-bold text-sm bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateRowField(row.productCode, "isDualMode", true)}
+                              className="text-[10px] text-orange-600 hover:text-orange-700 underline font-bold"
+                            >
+                              تفعيل عد [كرتون + حبة] 📦
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-center">
                         {diff !== null ? (
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-extrabold ${
-                              isDeficit
-                                ? "bg-red-100 text-red-700 ring-1 ring-red-300"
-                                : isSurplus
-                                ? "bg-green-100 text-green-700 ring-1 ring-green-300"
-                                : isMatch
-                                ? "bg-blue-100 text-blue-700 ring-1 ring-blue-300"
-                                : ""
-                            }`}
-                          >
-                            {diff > 0 ? `+${diff}` : diff}
-                          </span>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span
+                              className={`inline-block px-2.5 py-1 rounded-lg text-xs font-black ${
+                                isDeficit
+                                  ? "bg-red-100 text-red-700 ring-1 ring-red-300"
+                                  : isSurplus
+                                  ? "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300"
+                                  : "bg-blue-100 text-blue-800 ring-1 ring-blue-300"
+                              }`}
+                            >
+                              {diff > 0 ? `+${diff}` : diff} حبة
+                            </span>
+                            {row.packSize > 1 && Math.abs(diff) >= row.packSize && (
+                              <span className="text-[10px] text-slate-500 font-bold">
+                                ({diff > 0 ? "+" : "-"}{Math.floor(Math.abs(diff) / row.packSize)} كرتون و {Math.abs(diff) % row.packSize} حبة)
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-slate-300 text-xs">—</span>
                         )}
@@ -739,8 +1171,8 @@ ${a.notes ? `📝 ${lang === "ar" ? "ملاحظات" : "Notes"}: ${a.notes}` : "
                           id={`note-${row.productCode}`}
                           type="text"
                           value={row.itemNotes}
-                          onChange={(e) => updateRow(row.productCode, "itemNotes", e.target.value)}
-                          placeholder="تالف / انتهاء صلاحية..."
+                          onChange={(e) => updateRowField(row.productCode, "itemNotes", e.target.value)}
+                          placeholder="تالف / منتهي..."
                           className="w-full px-2 py-1 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-300 text-slate-700 bg-transparent"
                         />
                       </td>
