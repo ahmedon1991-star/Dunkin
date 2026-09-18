@@ -615,19 +615,21 @@ export function BranchTransferModal({
                           <div key={p.code} className="p-2.5 flex items-center justify-between hover:bg-white transition text-xs">
                             <div>
                               <span className="font-mono text-blue-700 font-bold ml-1">#{p.code}</span>
-                              <span className="font-bold text-slate-800">{lang === "en" ? getProductName(p.nameAr, p.nameEn) : p.nameAr}</span>
-                              <span className="text-slate-400 mr-2">({p.unit})</span>
+                              <span className="font-bold text-slate-800">{getProductName(p)}</span>
+                              <span className="text-slate-400 mr-2">({p.unitLabel || p.unitCode || "كرتون"})</span>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                addItemToTransfer(p, p.unit, 1);
-                                setProductSearch("");
-                              }}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-3 py-1 rounded-lg text-xs transition"
-                            >
-                              {currentInTransfer ? "+ إضافة المزيد" : "+ إضافة للطلب"}
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addItemToTransfer(p, p.unitLabel || "كرتون 📦", 1);
+                                  setProductSearch("");
+                                }}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-3 py-1 rounded-lg text-xs transition"
+                              >
+                                {currentInTransfer ? "+ إضافة المزيد" : "+ إضافة للطلب"}
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
